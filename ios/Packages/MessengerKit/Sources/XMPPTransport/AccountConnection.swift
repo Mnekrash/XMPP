@@ -75,6 +75,8 @@ public final class AccountConnection: @unchecked Sendable {
         var options = SocketConnector.Options()
         options.dnsResolver = FixedEndpointResolver(host: config.xmppHost, port: Int(config.xmppPort))
         options.conntectionTimeout = 15
+        let domain = config.xmppDomain
+        options.sslCertificateValidation = .customValidator { ServerCertificatePolicy.isTrusted($0, domain: domain) }
         c.connectionConfiguration.connectorOptions = options
         _ = c.modulesManager.register(StreamFeaturesModule())
         _ = c.modulesManager.register(SaslModule())

@@ -18,7 +18,7 @@ openssl req -newkey rsa:2048 -nodes -subj "/CN=$DOMAIN" -keyout "$WORK/server.ke
 printf "subjectAltName=DNS:%s\nextendedKeyUsage=serverAuth\n" "$DOMAIN" > "$WORK/ext.cnf"
 openssl x509 -req -in "$WORK/server.csr" -CA "$WORK/ca.crt" -CAkey "$WORK/ca.key" -CAcreateserial -days 2 \
   -extfile "$WORK/ext.cnf" -out "$WORK/server.crt"
-cat "$WORK/server.key" "$WORK/server.crt" > "$WORK/server.pem"
+cat "$WORK/server.key" "$WORK/server.crt" "$WORK/ca.crt" > "$WORK/server.pem"
 sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "$WORK/ca.crt"
 
 cat > "$CONF" <<YML
