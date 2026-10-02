@@ -8,9 +8,16 @@ import Security
 /// alone, as issued by Let's Encrypt since 2026) is rejected. We evaluate with the server policy against the
 /// account domain and the system trust store; nothing else is relaxed.
 enum ServerCertificatePolicy {
-    static func isTrusted(_ trust: SecTrust, domain: String) -> Bool {
-        guard SecTrustSetPolicies(trust, SecPolicyCreateSSL(true, domain as CFString)) == errSecSuccess else { return false }
+    /// nil = trusted; otherwise the system's reason (diagnostics only, never shown to the user).
+    static func failure(_ trust: SecTrust, domain: String) -> String? {
+        let status = SecTrustSetPolicies(trust, SecPolicyCreateSSL(true, domain as CFString))
+        guard status == errSecSuccess else { return "SecTrustSetPolicies \(status)" }
         var error: CFError?
-        return SecTrustEvaluateWithError(trust, &error)
+        if SecTrustEvaluateWithError(trust, &error) { return nil }
+        return error.map { CFErrorCopyDescription($0) as String } ?? "not trusted"
+    }
+
+    static func isTrusted(_ trust: SecTrust, domain: String) -> Bool {
+        failure(trust, domain: domain) == nil
     }
 }

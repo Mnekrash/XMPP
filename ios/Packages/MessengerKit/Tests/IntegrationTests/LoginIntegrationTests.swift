@@ -24,6 +24,23 @@ struct LoginIntegrationTests {
                                credentials: store, appVersion: "it")
     }
 
+    /// Transport only: TLS (system trust, server policy) + SASL with the right password. Prints the diagnostics on failure.
+    @Test(.enabled(if: enabled)) func transportConnectsAndAuthenticates() async throws {
+        let domain = Self.env["IT_XMPP_DOMAIN"]!
+        let config = try ServerConfig(infoDictionary: [
+            "MessengerXMPPDomain": domain, "MessengerXMPPHost": Self.env["IT_XMPP_HOST"] ?? domain,
+            "MessengerXMPPPort": "5223", "MessengerMUCDomain": "groups." + domain,
+            "MessengerPushComponentJID": "push." + domain, "MessengerAppGroup": "group.test",
+        ])
+        let connection = AccountConnection(config: config, resource: "it-transport")
+        do {
+            try await connection.connect(username: "it_restore", password: Self.env["IT_PASSWORD2"]!)
+        } catch {
+            Issue.record("connect failed: \(error) · \(connection.diagnostics().map { "\($0.0)=\($0.1)" }.joined(separator: " · "))")
+        }
+        await connection.disconnect()
+    }
+
     @Test(.enabled(if: enabled)) func wrongPasswordIsInvalidCredentials() async throws {
         let auth = try service()
         await #expect(throws: UserFacingError.invalidCredentials) { try await auth.logIn(username: "it_ok", password: "wrong-password") }

@@ -30,6 +30,7 @@ public final class AccountConnection: @unchecked Sendable {
     private var observers: [UUID: AsyncStream<TransportState>.Continuation] = [:]
     private var _state: TransportState = .disconnected
     private var lastDisconnect: String = "—"
+    private var lastCertificateCheck: String = "—"
     private let saslObserver = SaslFailureObserver()   // Martin defect workaround (SaslFailureWorkaround.swift)
 
     private static let flagNamespace = "urn:x-messenger:account"
@@ -76,7 +77,11 @@ public final class AccountConnection: @unchecked Sendable {
         options.dnsResolver = FixedEndpointResolver(host: config.xmppHost, port: Int(config.xmppPort))
         options.conntectionTimeout = 15
         let domain = config.xmppDomain
-        options.sslCertificateValidation = .customValidator { ServerCertificatePolicy.isTrusted($0, domain: domain) }
+        options.sslCertificateValidation = .customValidator { [weak self] trust in
+            let failure = ServerCertificatePolicy.failure(trust, domain: domain)
+            self?.lock.withLock { self?.lastCertificateCheck = failure ?? "trusted" }
+            return failure == nil
+        }
         c.connectionConfiguration.connectorOptions = options
         _ = c.modulesManager.register(StreamFeaturesModule())
         _ = c.modulesManager.register(SaslModule())
@@ -209,6 +214,7 @@ public final class AccountConnection: @unchecked Sendable {
             ("Transport state", "\(state)"),
             ("Stream Management", sm.map { "resumption \($0.resumptionEnabled ? "enabled" : "disabled")" } ?? "—"),
             ("Last disconnect reason", lock.withLock { lastDisconnect }),
+            ("Certificate check", lock.withLock { lastCertificateCheck }),
         ]
     }
 }

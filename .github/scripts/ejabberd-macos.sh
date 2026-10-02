@@ -20,6 +20,8 @@ openssl x509 -req -in "$WORK/server.csr" -CA "$WORK/ca.crt" -CAkey "$WORK/ca.key
   -extfile "$WORK/ext.cnf" -out "$WORK/server.crt"
 cat "$WORK/server.key" "$WORK/server.crt" "$WORK/ca.crt" > "$WORK/server.pem"
 sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "$WORK/ca.crt"
+# What the system thinks of the server certificate (SSL server policy for the domain); informational.
+security verify-cert -c "$WORK/server.crt" -p ssl -s "$DOMAIN" || echo "warning: verify-cert failed"
 
 cat > "$CONF" <<YML
 hosts: ["$DOMAIN"]
