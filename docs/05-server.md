@@ -42,11 +42,8 @@ Internet
   └ SSH (keys only) for admin
 ```
 
-Certificates: Caddy is the only ACME client. ejabberd reads the issued certs from Caddy's volume (read-only),
-and a daily job runs `ejabberdctl reload_config` so renewed certificates are picked up.
-
 Containers: `caddy`, `ejabberd` (official image, pinned version), `postgres:17`, `push-gateway`,
-plus a `backup` job (cron, `pg_dump` + upload volume snapshot, encrypted with `age`).
+plus a `backup` job (cron, `pg_dump` + upload volume snapshot, encrypted with `age`; planned for Phase 11).
 
 Domains (all configured from `.env`, never hardcoded):
 
@@ -60,47 +57,28 @@ Domains (all configured from `.env`, never hardcoded):
 Environments: `development` (docker-compose.dev.yml, local CA, APNs sandbox), `staging`, `production`.
 Each is a separate host + `.env`. The iOS build configuration points to the matching domain.
 
-## 3. ejabberd configuration highlights
+## 3. ejabberd configuration
 
-```yaml
-hosts: ["${XMPP_DOMAIN}"]
-sql_type: pgsql
-default_db: sql
-new_sql_schema: true            # multi-host schema
-update_sql_schema: true
-auth_method: sql
-auth_password_format: scram
-auth_scram_hash: sha256
-s2s_access: none                # federation disabled: closed service
-listen:
-  - {port: 5222, module: ejabberd_c2s, starttls_required: true, max_stanza_size: 262144, shaper: c2s_shaper}
-  - {port: 5223, module: ejabberd_c2s, tls: true, max_stanza_size: 262144, shaper: c2s_shaper}
-  - {port: 5443, ip: "::", module: ejabberd_http, tls: false, request_handlers: {/upload: mod_http_upload}}  # internal, behind Caddy
-  - {port: 5347, ip: "<internal>", module: ejabberd_service, hosts: {"push.${XMPP_DOMAIN}": {password: "${COMPONENT_SECRET}"}}}
-modules:
-  mod_disco: {}
-  mod_caps: {}
-  mod_pubsub: {plugins: [flat, pep]}   # PEP for OMEMO, avatars, nick
-  mod_pep: {}
-  mod_carboncopy: {}
-  mod_stream_mgmt: {resend_on_timeout: if_offline}
-  mod_mam: {default: always, assume_mam_usage: true, user_mucsub_from_muc_archive: true}
-  mod_muc: {host: "groups.${XMPP_DOMAIN}", access_create: local, default_room_options:
-            {members_only: true, anonymous: false, persistent: true, mam: true, allow_subscription: true,
-             public: false, public_list: false, allow_user_invites: false}}
-  mod_http_upload: {put_url: "https://${UPLOAD_DOMAIN}/upload", max_size: 104857600}
-  mod_http_upload_quota: {max_days: 90}
-  mod_push: {include_body: false, include_sender: true, notify_on: messages}
-  mod_push_keepalive: {resume_timeout: 72h, wake_on_timeout: true}
-  mod_shared_roster: {db_type: sql}
-  mod_vcard: {}
-  mod_avatar: {}
-  mod_fail2ban: {c2s_auth_ban_lifetime: 1h, c2s_max_auth_failures: 10}
-  mod_ping: {}
-  mod_register: false            # no in-band registration
-```
+The source of truth is [`server/ejabberd/ejabberd.yml.template`](../server/ejabberd/ejabberd.yml.template),
+rendered by `scripts/render-config.sh` from `deploy/.env`. It has been verified against ejabberd 26.09
+(`ejabberd/ecs:26.09`) by `scripts/dev-smoke.sh`. Key choices:
 
-(Illustrative. Exact option names are validated against the pinned ejabberd version when the skeleton is built.)
+- PostgreSQL for everything (`default_db: sql`, `sql_schema_multihost: true`, `update_sql_schema: true`:
+  ejabberd creates and migrates its own schema).
+- `auth_password_format: scram`, `auth_scram_hash: sha256`. PLAIN, X-OAUTH2 and DIGEST-MD5 are disabled.
+- `s2s_access: none` (no federation). In-band registration (`mod_register`) is not loaded.
+- c2s on 5222 (`starttls_required`) and 5223 (direct TLS). HTTP Upload (5443) and the component port
+  (5347) are reachable only on the internal Docker network.
+- `mod_muc` defaults: members-only, non-anonymous, persistent, MAM on, MUC/Sub allowed, not public.
+- `mod_push`: `include_body: false`, `include_sender: true`. `mod_push_keepalive`: 72 h resume, wake on timeout.
+- `mod_http_upload`: `thumbnail: false` (uploads are ciphertext). `mod_http_upload_quota`: retention from `.env`.
+- PEP comes from `mod_pubsub` with the `pep` plugin (ejabberd has no separate `mod_pep`).
+- `mod_offline` with `use_mam_for_storage: true`. `mod_shared_roster` (SQL) for server-managed contacts.
+
+Certificates: Caddy is the only ACME client (`acme: auto: false` in ejabberd). `scripts/sync-certs.sh`
+copies the XMPP-domain certificate from Caddy's storage into ejabberd's certificate volume (owned by
+ejabberd's uid 9000) and runs `ejabberdctl reload_config` when it changed. Run it hourly from cron.
+In development Caddy uses its local CA (`TLS_MODE=internal`, 12 h leaf certificates).
 
 ## 4. Administration (MVP)
 
@@ -108,7 +86,8 @@ modules:
 
 | Command | ejabberd commands |
 |---------|-------------------|
-| `create <username> "<Display Name>"` | `register` (random strong password printed once) → `set_vcard FN` / `set_nickname` → `srg_user_add` to the team group |
+| `init` | `srg_create` + `srg_user_add @all@`: one shared contact group, so every account sees every other account (idempotent) |
+| `create <username> "<Display Name>"` | `register` (random strong password printed once) → `set_vcard FN` / `set_nickname` (contacts come from the shared group created by `init`) |
 | `disable <username> "<reason>"` | `ban_account` (kicks sessions, blocks login) + purge push registrations |
 | `enable <username>` | `unban_account` |
 | `delete <username>` | `unregister` + purge push registrations + remove from shared roster |

@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  server-smoke:
+    name: Server stack smoke test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create development .env with random secrets
+        run: |
+          cp deploy/.env.example deploy/.env
+          sed -i 's/^XMPP_DOMAIN=.*/XMPP_DOMAIN=chat.messenger.test/; s/^UPLOAD_DOMAIN=.*/UPLOAD_DOMAIN=upload.messenger.test/' deploy/.env
+          for key in POSTGRES_PASSWORD EJABBERD_DB_PASSWORD PUSH_DB_PASSWORD PUSH_COMPONENT_SECRET; do
+            sed -i "s/^$key=.*/$key=$(openssl rand -hex 24)/" deploy/.env
+          done
+      - name: Run end-to-end smoke test
+        run: scripts/dev-smoke.sh
+      - name: Container logs
+        if: failure()
+        run: docker compose -f deploy/docker-compose.yml --env-file deploy/.env logs --no-color
+
+  push-gateway:
+    name: Push gateway (Go)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: push
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: push/go.mod
+      - run: test -z "$(gofmt -l .)"
+      - run: go vet ./...
+      - run: go test ./...
+      - run: go build ./...
+
+  shell:
+    name: Shell scripts
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: shellcheck scripts/*.sh server/postgres/init/*.sh server/cert-sync/*.sh
+
+  ios:
+    name: iOS build and unit tests
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: MessengerKit unit tests
+        run: swift test --package-path ios/Packages/MessengerKit
+      - name: Generate Xcode project
+        run: cd ios && xcodegen generate
+      - name: Build app (simulator, unsigned)
+        run: |
+          xcodebuild -project ios/Messenger.xcodeproj -scheme Messenger -configuration Development \
+            -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build

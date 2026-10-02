@@ -1,0 +1,6 @@
+#include "Shared.xcconfig"
+
+APP_BUNDLE_ID = com.example.messenger.dev
+APP_DISPLAY_NAME = Messenger Dev
+XMPP_DOMAIN = chat.messenger.test
+APS_ENVIRONMENT = development

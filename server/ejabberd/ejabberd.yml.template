@@ -1,0 +1,182 @@
+###
+### ejabberd configuration template for the private messenger.
+### Rendered by scripts/render-config.sh from deploy/.env into deploy/generated/ejabberd.yml.
+### Only the variables listed in render-config.sh are substituted.
+###
+
+hosts:
+  - "${XMPP_DOMAIN}"
+
+loglevel: info            # NEVER 'debug' in production: it logs full stanzas
+hide_sensitive_log_data: true
+
+acme:
+  auto: false             # Caddy is the only ACME client (scripts/sync-certs.sh)
+
+certfiles:
+  - "/home/ejabberd/certs/*.crt"
+  - "/home/ejabberd/certs/*.key"
+
+## --- Storage: PostgreSQL --------------------------------------------------
+sql_type: pgsql
+sql_server: "postgres"
+sql_port: 5432
+sql_database: "${EJABBERD_DB_NAME}"
+sql_username: "${EJABBERD_DB_USER}"
+sql_password: "${EJABBERD_DB_PASSWORD}"
+sql_pool_size: 10
+default_db: sql
+sql_schema_multihost: true
+update_sql_schema: true
+
+## --- Authentication --------------------------------------------------------
+auth_method: [sql]
+auth_password_format: scram
+auth_scram_hash: sha256
+disable_sasl_mechanisms: ["PLAIN", "X-OAUTH2", "DIGEST-MD5"]
+
+## --- Closed service: no federation, no in-band registration ---------------
+s2s_access: none
+
+## --- Listeners -------------------------------------------------------------
+listen:
+  - port: 5222
+    ip: "0.0.0.0"         # IPv4 inside the Docker network; host publishing handles IPv6
+    module: ejabberd_c2s
+    starttls_required: true
+    max_stanza_size: 262144
+    shaper: c2s_shaper
+    access: c2s
+  - port: 5223
+    ip: "0.0.0.0"         # IPv4 inside the Docker network; host publishing handles IPv6
+    module: ejabberd_c2s
+    tls: true                 # direct TLS (XEP-0368); used by the iOS app
+    max_stanza_size: 262144
+    shaper: c2s_shaper
+    access: c2s
+  # Internal only (not published by docker compose): HTTP Upload behind Caddy.
+  - port: 5443
+    ip: "0.0.0.0"         # IPv4 inside the Docker network; host publishing handles IPv6
+    module: ejabberd_http
+    tls: false
+    request_handlers:
+      /upload: mod_http_upload
+  # Internal only: push gateway component (XEP-0114).
+  - port: 5347
+    ip: "0.0.0.0"         # IPv4 inside the Docker network; host publishing handles IPv6
+    module: ejabberd_service
+    hosts:
+      "push.${XMPP_DOMAIN}":
+        password: "${PUSH_COMPONENT_SECRET}"
+
+## --- Access control --------------------------------------------------------
+acl:
+  local:
+    user_regexp: ""
+  loopback:
+    ip:
+      - 127.0.0.0/8
+      - ::1/128
+
+access_rules:
+  local:
+    allow: local
+  c2s:
+    deny: blocked
+    allow: all
+  muc_create:
+    allow: local
+  pubsub_createnode:
+    allow: local
+  trusted_network:
+    allow: loopback
+
+api_permissions:
+  "console commands":
+    from: ejabberd_ctl
+    who: all
+    what: "*"
+
+shaper:
+  normal:
+    rate: 3000
+    burst_size: 20000
+  fast: 100000
+
+shaper_rules:
+  max_user_sessions: 10
+  max_user_offline_messages:
+    5000: all
+  c2s_shaper:
+    normal: all
+
+## --- Modules ---------------------------------------------------------------
+modules:
+  mod_admin_extra: {}         # ban_account, change_password, set_vcard, set_nickname, kick_*
+  mod_avatar: {}
+  mod_caps: {}
+  mod_carboncopy: {}
+  mod_client_state: {}
+  mod_disco: {}
+  mod_fail2ban:
+    c2s_auth_ban_lifetime: 1 hour
+    c2s_max_auth_failures: 10
+  mod_http_upload:
+    host: "upload.${XMPP_DOMAIN}"
+    put_url: "https://${UPLOAD_DOMAIN}/upload"
+    docroot: "/home/ejabberd/upload"
+    max_size: ${UPLOAD_MAX_BYTES}
+    thumbnail: false          # files are ciphertext; never generate server-side previews
+  mod_http_upload_quota:
+    max_days: ${UPLOAD_RETENTION_DAYS}
+  mod_last: {}
+  mod_mam:
+    db_type: sql
+    default: always
+    assume_mam_usage: true
+    user_mucsub_from_muc_archive: true
+  mod_muc:
+    host: "groups.${XMPP_DOMAIN}"
+    db_type: sql
+    access_create: muc_create
+    access_persistent: muc_create
+    history_size: 0           # history comes from MAM, not from MUC join history
+    default_room_options:
+      members_only: true
+      anonymous: false        # required by OMEMO group encryption
+      persistent: true
+      mam: true
+      allow_subscription: true  # MUC/Sub: offline delivery + push for group members
+      public: false
+      public_list: false
+      allow_user_invites: false
+  mod_offline:
+    use_mam_for_storage: true
+  mod_ping: {}
+  mod_privacy: {}
+  mod_private: {}
+  mod_pubsub:
+    db_type: sql
+    access_createnode: pubsub_createnode
+    plugins:
+      - flat
+      - pep                   # PEP: OMEMO device lists and bundles, avatars, nicknames
+  mod_push:
+    include_body: false       # never forward message content to the push gateway
+    include_sender: true
+    notify_on: messages
+  mod_push_keepalive:
+    resume_timeout: 72 hours
+    wake_on_timeout: true
+  mod_roster:
+    db_type: sql
+    versioning: true
+  mod_shared_roster:
+    db_type: sql
+  mod_stream_mgmt:
+    resend_on_timeout: if_offline
+  mod_vcard:
+    db_type: sql
+  mod_vcard_xupdate: {}
+  mod_version:
+    show_os: false

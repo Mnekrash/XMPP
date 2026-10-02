@@ -1,0 +1,14 @@
+// Shared build settings. Environment files include this and override what differs.
+// Signing: put DEVELOPMENT_TEAM in Config/Local.xcconfig (git-ignored).
+
+APP_DISPLAY_NAME = Messenger
+XMPP_PORT = 5223
+KEYCHAIN_GROUP = $(APP_BUNDLE_ID).shared
+
+// xcconfig treats "//" as a comment, so only host names (never URLs) live here.
+XMPP_HOST = $(XMPP_DOMAIN)
+MUC_DOMAIN = groups.$(XMPP_DOMAIN)
+PUSH_COMPONENT_JID = push.$(XMPP_DOMAIN)
+APP_GROUP_ID = group.$(APP_BUNDLE_ID)
+
+#include? "Local.xcconfig"

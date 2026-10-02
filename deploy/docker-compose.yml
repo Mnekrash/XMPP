@@ -1,0 +1,102 @@
+# Messenger server stack. Usage: see deploy/README.md.
+# Only 80/443 (Caddy) and 5222/5223 (XMPP client, TLS) are published.
+
+name: ${COMPOSE_PROJECT_NAME:-messenger}
+
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE:-postgres:17}
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+      EJABBERD_DB_NAME: ${EJABBERD_DB_NAME}
+      EJABBERD_DB_USER: ${EJABBERD_DB_USER}
+      EJABBERD_DB_PASSWORD: ${EJABBERD_DB_PASSWORD:?set in .env}
+      PUSH_DB_NAME: ${PUSH_DB_NAME}
+      PUSH_DB_USER: ${PUSH_DB_USER}
+      PUSH_DB_PASSWORD: ${PUSH_DB_PASSWORD:?set in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../server/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+
+  ejabberd:
+    image: ${EJABBERD_IMAGE:-ejabberd/ecs:26.09}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "5222:5222"   # STARTTLS required
+      - "5223:5223"   # direct TLS (used by the app)
+    volumes:
+      - ./generated/ejabberd.yml:/home/ejabberd/conf/ejabberd.yml:ro
+      - ejabberd_certs:/home/ejabberd/certs:ro
+      - ejabberd_mnesia:/home/ejabberd/database
+      - uploads:/home/ejabberd/upload
+    healthcheck:
+      test: ["CMD", "ejabberdctl", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks: [internal]
+
+  caddy:
+    image: ${CADDY_IMAGE:-caddy:2}
+    restart: unless-stopped
+    depends_on: [ejabberd]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      XMPP_DOMAIN: ${XMPP_DOMAIN:?set in .env}
+      UPLOAD_DOMAIN: ${UPLOAD_DOMAIN:?set in .env}
+      TLS_MODE: ${TLS_MODE:?set in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [internal]
+
+  push-gateway:
+    build: ../push
+    restart: unless-stopped
+    depends_on: [ejabberd]
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      XMPP_DOMAIN: ${XMPP_DOMAIN}
+      COMPONENT_JID: push.${XMPP_DOMAIN}
+      COMPONENT_ADDR: ejabberd:5347
+      COMPONENT_SECRET: ${PUSH_COMPONENT_SECRET:?set in .env}
+      HTTP_ADDR: ":8080"
+    networks: [internal]
+
+  # One-shot tool, run by scripts/sync-certs.sh (not started by "up").
+  cert-sync:
+    image: alpine:3.22
+    profiles: [tools]
+    environment:
+      XMPP_DOMAIN: ${XMPP_DOMAIN}
+    volumes:
+      - caddy_data:/caddy-data:ro
+      - ejabberd_certs:/ejabberd-certs
+      - ../server/cert-sync/sync.sh:/sync.sh:ro
+    entrypoint: ["/bin/sh", "/sync.sh"]
+    network_mode: none
+
+volumes:
+  pgdata:
+  ejabberd_certs:
+  ejabberd_mnesia:
+  uploads:
+  caddy_data:
+  caddy_config:
+
+networks:
+  internal:

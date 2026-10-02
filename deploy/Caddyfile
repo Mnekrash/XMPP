@@ -1,0 +1,20 @@
+# HTTPS front for HTTP Upload. Caddy is the only ACME client;
+# the certificate for {$XMPP_DOMAIN} is copied to ejabberd by scripts/sync-certs.sh.
+
+{$UPLOAD_DOMAIN} {
+	tls {$TLS_MODE}
+	request_body {
+		max_size 110MB
+	}
+	reverse_proxy ejabberd:5443
+	log {
+		output stdout
+		format json
+	}
+}
+
+# Served only so that Caddy obtains and renews the XMPP domain certificate.
+{$XMPP_DOMAIN} {
+	tls {$TLS_MODE}
+	respond 404
+}

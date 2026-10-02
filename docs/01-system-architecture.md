@@ -56,7 +56,7 @@ flowchart TB
     Push["Push (APNs token, gateway registration)"]
     Auth["Authentication"]
     Pers["Persistence (GRDB, migrations, FTS)"]
-    Sec["Security (Keychain, LocalAuthentication, secure random)"]
+    Sec["AppSecurity (Keychain, LocalAuthentication, secure random)"]
     Net["Networking (NWPathMonitor, URLSession)"]
   end
   NSE["NotificationServiceExtension"]
@@ -90,7 +90,7 @@ Dependency rules (enforced by SwiftPM target dependencies):
 
 The XMPP library and the OMEMO implementation are **open decisions (D3/D4)**, decided by spike S1.
 Only the adapter modules `XMPPTransport` and `OMEMO` may import them.
-| OMEMO | Security, Domain (`EncryptionService`), a crypto-store protocol | UI, XMPP types |
+| OMEMO | AppSecurity, Domain (`EncryptionService`), a crypto-store protocol | UI, XMPP types |
 | Persistence | Domain, GRDB | XMPP, OMEMO internals |
 
 Two abstraction levels exist on purpose:
@@ -178,8 +178,9 @@ sequenceDiagram
     Package.swift
     Sources/
       Domain/  Persistence/  XMPPTransport/  OMEMO/  SyncEngine/
-      Messaging/  Attachments/  Push/  Authentication/  Security/  Networking/
+      Messaging/  Attachments/  Push/  Authentication/  AppSecurity/  Networking/
       DesignSystem/  UI/
+      (the security module is named AppSecurity so it does not shadow Apple's Security framework)
     Tests/
       DomainTests/  PersistenceTests/ (incl. migrations)  XMPPTransportTests/
       OMEMOTests/ (vectors, interop)  SyncEngineTests/  MessagingTests/  AttachmentsTests/
