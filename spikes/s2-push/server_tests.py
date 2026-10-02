@@ -31,6 +31,7 @@ CA = os.environ.get("XMPP_CA", "/tmp/claude-0/caddy-root.crt")
 RECORDS = os.environ.get("MOCK_RECORDS", "/tmp/claude-0/s2/mock/records.jsonl")
 EJABBERD = "messenger-dev-ejabberd-1"
 GATEWAY = "messenger-dev-push-gateway-1"
+GATEWAYS = ["messenger-dev-push-gateway-1", "messenger-dev-push-gateway-2"]  # compose runs 2 replicas
 POSTGRES = "messenger-dev-postgres-1"
 NS_CMD = "http://jabber.org/protocol/commands"
 NS_DATA = "jabber:x:data"
@@ -235,17 +236,17 @@ async def p03_terminated_offline_push(c: Ctx) -> None:
 
 
 async def p04_gateway_restart(c: Ctx) -> None:
-    """Gateway restart while the user is in background.
+    """Complete gateway outage (all instances) while the user is in background.
     Characterises ejabberd's behaviour (a publish that fails during the outage makes mod_push DISABLE the node)
     and verifies the mitigation (client re-enables push whenever its session starts or resumes)."""
     bob, key, reg = await setup_bob(c)
     alice = await c.client("alice", "a")
     bob.abort()
     await asyncio.sleep(1)
-    subprocess.run(["docker", "stop", GATEWAY], capture_output=True)
+    subprocess.run(["docker", "stop", *GATEWAYS], capture_output=True)  # complete gateway outage
     alice.say(jid("bob"), "while gateway down")
     await asyncio.sleep(2)
-    subprocess.run(["docker", "start", GATEWAY], capture_output=True)
+    subprocess.run(["docker", "start", *GATEWAYS], capture_output=True)
     for _ in range(30):
         h = subprocess.run(["docker", "exec", GATEWAY, "wget", "-qO-", "http://127.0.0.1:8080/healthz"],
                            capture_output=True, text=True).stdout
@@ -386,6 +387,7 @@ async def p10_two_gateway_instances(c: Ctx) -> None:
         subprocess.run(["docker", "stop", GATEWAY], capture_output=True)
         delivered = []
         for i in range(3):
+            await asyncio.sleep(2.5)  # beyond the gateway's 2 s coalescing window
             n = len(records())
             alice.say(jid("bob"), f"ha{i}")
             delivered.append(len(await wait_records(n, 1)))

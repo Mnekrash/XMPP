@@ -39,7 +39,7 @@ dead token. The gateway rejects endpoint overrides in production. Script: `spike
 | p01 | Foreground (live session) | PASS | message over XMPP, **0** APNs requests |
 | p02 | Background (socket lost → SM hibernation) | PASS | 1 request: HTTP/2, valid JWT, `apns-push-type: alert`, priority 10, topic = bundle id; payload `{"aps":{"alert":{"title":"New message"},"mutable-content":1,"sound":"default","thread-id":"…"},"e":"…"}`; **no body, no JID**; `e` opens with the device key → sender |
 | p03 | Terminated (no session at all) | PASS | offline message still produced 1 request |
-| p04 | Gateway restart | PASS (finding) | **A failed publish during the outage makes ejabberd disable push** (`disabling push` in its log); the next message produced no push until the client re-enabled after resume → mitigations p10 + re-enable on every session start/resume |
+| p04 | Complete gateway outage (all instances) | PASS (finding) | **A failed publish during the outage makes ejabberd disable push** (`disabling push` in its log); the next message produced no push until the client re-enabled after resume → mitigations p10 + re-enable on every session start/resume |
 | p05 | Invalid token (410) | PASS | registration deleted; `item-not-found` to ejabberd; next message: 0 requests (node disabled) |
 | p06 | Token refresh | PASS (finding) | only the new token gets pushes. **ejabberd allows one push node per session** (`push_session` PK = host, user, session timestamp): disable the old node **before** enabling the new one, otherwise "Database failure" |
 | p07 | Logout cleanup | PASS | disable + unregister → 0 registrations, 0 requests |
@@ -57,6 +57,8 @@ failure case.
 ## 4. Consequences already applied
 
 - `deploy/docker-compose.yml`: push-gateway runs **2 replicas** (p04/p10).
+- The gateway coalesces pushes per device + conversation within 2 s (atomic in PostgreSQL across replicas). This
+  was added after S3 found duplicate publishes; see the S3 report. Final S2 run: 11/11 with coalescing enabled.
 - Client rules (docs/04): re-enable push after every new session **and** every resume; on token change:
   register new → disable old → enable new → unregister old (p06).
 - App background strategy: closing the socket (aborted or clean) is fine for push (p02, p11). Keeping SM state

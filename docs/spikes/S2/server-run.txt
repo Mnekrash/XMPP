@@ -1,26 +1,25 @@
-PASS  p01_foreground_no_push  (3.5s)
+PASS  p01_foreground_no_push  (3.4s)
       · delivered over the live stream; 0 APNs requests
 PASS  p02_background_push_content_free  (11.6s)
-      · APNs request: HTTP/2, valid ES256 JWT, push-type alert, priority 10; aps={'alert': {'title': 'New message'}, 'mutable-content': 1, 'sound': 'default', 'thread-id': '2e2428e6aa8094f29e28c443cd54ada5'}
+      · APNs request: HTTP/2, valid ES256 JWT, push-type alert, priority 10; aps={'alert': {'title': 'New message'}, 'mutable-content': 1, 'sound': 'default', 'thread-id': 'e1694cbbe3a4dd8c61a84415c6d2351c'}
       · payload contains no body/JID; envelope decrypted with the device key → sender alice@chat.messenger.test
 PASS  p03_terminated_offline_push  (12.9s)
       · no session at all (offline storage): ejabberd mod_push still published → 1 APNs request
-PASS  p04_gateway_restart  (20.4s)
+PASS  p04_gateway_restart  (20.5s)
       · FINDING: outage → ejabberd logged 'disabling push' = True; next message without client action produced an APNs request = False
       · mitigation verified: after resume + re-enable, pushes are delivered again
-PASS  p05_invalid_token  (17.0s)
+PASS  p05_invalid_token  (16.9s)
       · 410 → registration deleted; next message: 0 APNs requests; ejabberd did not publish again (node disabled)
-PASS  p06_token_refresh  (11.6s)
+PASS  p06_token_refresh  (11.7s)
       · only the new token receives pushes; old registration removed
-PASS  p07_logout_cleanup  (4.8s)
+PASS  p07_logout_cleanup  (4.7s)
       · after logout: 0 registrations, 0 APNs requests
 PASS  p08_mute  (16.0s)
       · muted: 0 requests; after unmute: 1 request (mute key is an opaque per-device HMAC)
 PASS  p09_account_disable_cleanup  (1.4s)
       · admin.sh disable: account banned and its push registrations deleted
-PASS  p10_two_gateway_instances  (17.0s)
+PASS  p10_two_gateway_instances  (24.6s)
       · instance 1 stopped: 3/3 pushes delivered by instance 2; ejabberd did not disable push
-payload audit: 9 APNs requests recorded; bodies leaked: 0
-===== p11 (added after run 1)
 PASS  p11_clean_close_keeps_push  (0.7s)
       · clean stream close keeps the push registration: offline message → 1 APNs request
+payload audit: 10 APNs requests recorded; bodies leaked: 0
