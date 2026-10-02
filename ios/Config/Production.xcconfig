@@ -1,5 +1,7 @@
 #include "Shared.xcconfig"
 
-APP_BUNDLE_ID = com.example.messenger
+APP_BUNDLE_ID = $(APP_BUNDLE_ID_PREFIX)
 XMPP_DOMAIN = chat.example.com
 APS_ENVIRONMENT = production
+
+#include? "Local.xcconfig"

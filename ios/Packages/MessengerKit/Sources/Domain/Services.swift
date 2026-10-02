@@ -3,10 +3,48 @@ import Foundation
 // Product-level services used by the UI. The UI never sees XMPP or OMEMO details.
 // Signatures are a first draft; they are refined in the phase that implements each service.
 
+/// The signed-in account as the UI sees it (no network addresses).
+public struct AccountInfo: Sendable, Equatable {
+    public var username: String
+    public var displayName: String?
+    /// The administrator issued a temporary password; the app asks for a new one before continuing.
+    public var mustChangePassword: Bool
+
+    public init(username: String, displayName: String?, mustChangePassword: Bool) {
+        self.username = username
+        self.displayName = displayName
+        self.mustChangePassword = mustChangePassword
+    }
+}
+
 public protocol AuthService: Sendable {
-    /// Logs in with the username only; the server domain comes from the build configuration.
-    func logIn(username: String, password: String) async throws(UserFacingError)
+    /// Logs in with the username only; the server comes from the build configuration.
+    func logIn(username: String, password: String) async throws(UserFacingError) -> AccountInfo
+    /// Signs in with credentials saved on this device. nil = no saved session or they were rejected.
+    func restoreSession() async -> AccountInfo?
+    /// Replaces the current password (e.g. the administrator's temporary one) and clears the change requirement.
+    func changePassword(to newPassword: String) async throws(UserFacingError)
     func logOut() async
+    /// Connection state for the UI, emitted on every change (new stream per caller).
+    func connectionStates() async -> AsyncStream<ConnectionState>
+    /// Reconnect if needed (app returned to the foreground).
+    func resume() async
+}
+
+/// Developer-only diagnostics (hidden screen). Never shown in the normal UI.
+public protocol DiagnosticsProviding: Sendable {
+    func diagnostics() async -> [DiagnosticsEntry]
+}
+
+public struct DiagnosticsEntry: Sendable, Hashable, Identifiable {
+    public var id: String { key }
+    public var key: String
+    public var value: String
+
+    public init(_ key: String, _ value: String) {
+        self.key = key
+        self.value = value
+    }
 }
 
 public protocol ConversationService: Sendable {

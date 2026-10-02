@@ -50,17 +50,49 @@ jobs:
       - run: shellcheck scripts/*.sh server/postgres/init/*.sh server/cert-sync/*.sh
 
   ios:
-    name: iOS build and unit tests
+    name: iOS app, NSE and unit tests (simulator)
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - name: Install XcodeGen
         run: brew install xcodegen
-      - name: MessengerKit unit tests
-        run: swift test --package-path ios/Packages/MessengerKit
+      - name: Pick an iPhone simulator
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for r,l in sorted(d.items(), reverse=True) if 'iOS' in r for x in l if x['name'].startswith('iPhone')))")
+          echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl list devices | grep "$UDID"
+      - name: MessengerKit unit tests on the iOS simulator (Domain, Networking, Authentication, Keychain, transport)
+        working-directory: ios/Packages/MessengerKit
+        run: |
+          xcodebuild test -scheme MessengerKit-Package -destination "id=$SIM_UDID" -skipPackagePluginValidation \
+            | tee "$RUNNER_TEMP/unit.log" | grep -E "Test (Suite|Case)|✔|✘|passed|failed|error:" | tail -80
+          test "${PIPESTATUS[0]}" -eq 0
       - name: Generate Xcode project
         run: cd ios && xcodegen generate
-      - name: Build app (simulator, unsigned)
+      - name: Build app + Notification Service Extension (simulator, unsigned)
         run: |
           xcodebuild -project ios/Messenger.xcodeproj -scheme Messenger -configuration Development \
-            -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+            -destination "id=$SIM_UDID" CODE_SIGNING_ALLOWED=NO build | tail -20
+          test "${PIPESTATUS[0]}" -eq 0
+          APP=$(find ~/Library/Developer/Xcode/DerivedData -path "*Development-iphonesimulator/Messenger Dev.app" -maxdepth 6 | head -1)
+          test -d "$APP/PlugIns/NotificationService.appex" && echo "NSE embedded: $APP/PlugIns/NotificationService.appex"
+      - name: Build app for a physical iPhone (generic device, unsigned)
+        run: |
+          xcodebuild -project ios/Messenger.xcodeproj -scheme Messenger -configuration Development \
+            -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build | tail -5
+          test "${PIPESTATUS[0]}" -eq 0
+
+  ios-integration:
+    name: Martin transport against a real ejabberd (macOS)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ejabberd
+        run: brew install ejabberd
+      - name: Start ejabberd with a CI CA and test accounts
+        run: .github/scripts/ejabberd-macos.sh
+      - name: Integration tests (login, wrong password, disabled account, temporary password flow, restore)
+        run: swift test --package-path ios/Packages/MessengerKit --filter "IntegrationTests|AuthenticationTests|XMPPTransportTests"
+      - name: ejabberd log
+        if: failure()
+        run: tail -100 "$(brew --prefix)/var/log/ejabberd/ejabberd.log" || true

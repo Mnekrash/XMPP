@@ -36,6 +36,14 @@ new_password() {
   openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | cut -c1-20
 }
 
+FLAG_NS="urn:x-messenger:account"
+
+# The app reads this flag after login (XEP-0049 private storage) and asks for a new password.
+# Client-enforced (ejabberd has no server-side "must change password"); see docs/09-device-validation.md.
+require_password_change() {
+  ctl private_set "$1" "$DOMAIN" "<account xmlns='$FLAG_NS' must-change-password='true'/>" >/dev/null
+}
+
 push_cleanup() {
   # Remove the account's APNs registrations from the push gateway database (the JID is a psql variable, not SQL text).
   local account="$1@$DOMAIN" deleted
@@ -64,8 +72,10 @@ case "$cmd" in
     ctl register "$1" "$DOMAIN" "$password"
     ctl set_vcard "$1" "$DOMAIN" FN "$2"
     ctl set_nickname "$1" "$DOMAIN" "$2"
+    require_password_change "$1"
     echo "Created '$1' ($2)."
     echo "Initial password (shown once): $password"
+    echo "Send to the user: login '$1', temporary password above. The app will ask for a new password at first login."
     ;;
   disable)
     [[ $# -eq 2 ]] || die "usage: disable <username> \"<reason>\""
@@ -95,6 +105,7 @@ case "$cmd" in
     valid_username "$1"
     password="$(new_password)"
     ctl change_password "$1" "$DOMAIN" "$password"
+    require_password_change "$1"
     ctl kick_user "$1" "$DOMAIN" >/dev/null || true
     echo "New password for '$1' (shown once): $password"
     ;;

@@ -1,6 +1,8 @@
 #include "Shared.xcconfig"
 
-APP_BUNDLE_ID = com.example.messenger.staging
+APP_BUNDLE_ID = $(APP_BUNDLE_ID_PREFIX).staging
 APP_DISPLAY_NAME = Messenger Beta
 XMPP_DOMAIN = chat.staging.example.com
 APS_ENVIRONMENT = production
+
+#include? "Local.xcconfig"

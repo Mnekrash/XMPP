@@ -1,0 +1,14 @@
+// Copy this file to Local.xcconfig (same folder) and fill in your values. Local.xcconfig is git-ignored.
+
+// 1. Your Apple Developer Team ID (10 characters): developer.apple.com → Account → Membership details.
+DEVELOPMENT_TEAM = ABCDE12345
+
+// 2. A bundle id prefix that belongs to you (reverse domain). The Development build becomes <prefix>.dev,
+//    its extension <prefix>.dev.notification-service. Xcode registers them automatically.
+APP_BUNDLE_ID_PREFIX = com.yourname.messenger
+
+// 3. Your server. XMPP_DOMAIN = the domain of the accounts (XMPP_DOMAIN in deploy/.env).
+//    XMPP_HOST = where the iPhone connects: the same domain for a server with a public certificate,
+//    or your Mac's Wi-Fi IP address for the local Docker server (docs/09-device-validation.md, option B).
+XMPP_DOMAIN = chat.example.com
+XMPP_HOST = chat.example.com

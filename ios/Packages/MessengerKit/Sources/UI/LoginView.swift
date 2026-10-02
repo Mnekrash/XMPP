@@ -1,86 +1,132 @@
+import DesignSystem
 import Domain
 import SwiftUI
 
 struct LoginView: View {
-    let authService: (any AuthService)?
+    let model: AppModel
 
     @State private var username = ""
     @State private var password = ""
+    @State private var showPassword = false
     @State private var isSubmitting = false
-    @State private var errorMessage: String?
+    @State private var error: UserFacingError?
+    @FocusState private var focus: Field?
+
+    enum Field { case username, password }
 
     private var canSubmit: Bool {
         !username.trimmingCharacters(in: .whitespaces).isEmpty && !password.isEmpty && !isSubmitting
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    usernameField
-                    passwordField
+        ScrollView {
+            VStack(spacing: 28) {
+                VStack(spacing: 14) {
+                    AppLogo(size: 92)
+                    Text(Brand.name)
+                        .font(.largeTitle.weight(.bold))
+                    Text("Войдите с логином и паролем,\nкоторые выдал администратор.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
                 }
-                if let errorMessage {
-                    Section {
-                        Text(errorMessage)
-                            .foregroundStyle(.red)
-                    }
-                }
-                Section {
-                    Button {
-                        Task { await submit() }
-                    } label: {
-                        if isSubmitting {
-                            ProgressView()
-                        } else {
-                            Text("Log In")
+                .padding(.top, 48)
+
+                VStack(spacing: 12) {
+                    TextField("Логин", text: $username)
+                        .textContentType(.username)
+                        .noAutocapitalization()
+                        .autocorrectionDisabled()
+                        .submitLabel(.next)
+                        .focused($focus, equals: .username)
+                        .onSubmit { focus = .password }
+                        .modifier(FieldBackground())
+
+                    HStack {
+                        Group {
+                            if showPassword {
+                                TextField("Пароль", text: $password)
+                            } else {
+                                SecureField("Пароль", text: $password)
+                            }
                         }
+                        .textContentType(.password)
+                        .noAutocapitalization()
+                        .autocorrectionDisabled()
+                        .submitLabel(.go)
+                        .focused($focus, equals: .password)
+                        .onSubmit { Task { await submit() } }
+
+                        Button {
+                            showPassword.toggle()
+                        } label: {
+                            Image(systemName: showPassword ? "eye.slash" : "eye")
+                                .foregroundStyle(.secondary)
+                        }
+                        .accessibilityLabel(showPassword ? "Скрыть пароль" : "Показать пароль")
                     }
-                    .disabled(!canSubmit)
+                    .modifier(FieldBackground())
                 }
+
+                if let error {
+                    ErrorBanner(error: error)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+
+                Button("Войти") { Task { await submit() } }
+                    .buttonStyle(PrimaryButtonStyle(isLoading: isSubmitting))
+                    .disabled(!canSubmit)
+                    .opacity(canSubmit || isSubmitting ? 1 : 0.5)
             }
-            .navigationTitle("Welcome")
+            .padding(.horizontal, 24)
+            .frame(maxWidth: 440)
+            .frame(maxWidth: .infinity)
         }
-    }
-
-    @ViewBuilder
-    private var usernameField: some View {
-        #if os(iOS)
-        TextField("Username", text: $username)
-            .textContentType(.username)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-        #else
-        TextField("Username", text: $username)
-        #endif
-    }
-
-    @ViewBuilder
-    private var passwordField: some View {
-        #if os(iOS)
-        SecureField("Password", text: $password)
-            .textContentType(.password)
-        #else
-        SecureField("Password", text: $password)
-        #endif
+        .scrollDismissesKeyboard(.interactively)
+        .background(Color(uiColorCompatible: .systemBackground))
+        .animation(.easeInOut(duration: 0.2), value: error)
+        .onChange(of: username) { _, _ in error = nil }
+        .onChange(of: password) { _, _ in error = nil }
     }
 
     private func submit() async {
-        guard let authService else {
-            // SKELETON: no AuthService implementation exists yet (Phase 2).
-            errorMessage = "Login is not available in this build yet."
-            return
-        }
+        guard canSubmit else { return }
+        focus = nil
         isSubmitting = true
         defer { isSubmitting = false }
-        errorMessage = nil
         do {
-            try await authService.logIn(
-                username: username.trimmingCharacters(in: .whitespaces).lowercased(),
-                password: password
-            )
+            try await model.logIn(username: username, password: password)
         } catch {
-            errorMessage = error.message
+            self.error = error
+            if error == .invalidCredentials { password = "" }
         }
+    }
+}
+
+struct ErrorBanner: View {
+    let error: UserFacingError
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: error == .cannotConnect ? "wifi.exclamationmark" : "exclamationmark.circle.fill")
+                .foregroundStyle(.red)
+            Text(error.message)
+                .font(.subheadline)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(14)
+        .background(Color.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+}
+
+extension View {
+    /// iOS-only modifier, no-op on the macOS test build.
+    func noAutocapitalization() -> some View {
+        #if os(iOS)
+        return textInputAutocapitalization(.never)
+        #else
+        return self
+        #endif
     }
 }

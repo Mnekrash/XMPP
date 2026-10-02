@@ -3,21 +3,22 @@ public enum UserFacingError: Error, Sendable, Equatable {
     case cannotConnect
     case invalidCredentials
     case accountDisabled
+    case weakPassword
     case sendFailed
     case attachmentTooLarge
     case storageFull
     case unknown
 
-    // English for now; localization is added in Phase 10.
     public var message: String {
         switch self {
-        case .cannotConnect: "Unable to connect. Try again."
-        case .invalidCredentials: "Wrong username or password."
-        case .accountDisabled: "Your account is disabled. Contact your administrator."
-        case .sendFailed: "Message not sent. Tap to retry."
-        case .attachmentTooLarge: "This file is too large to send."
-        case .storageFull: "Your iPhone is out of storage."
-        case .unknown: "Something went wrong. Try again."
+        case .cannotConnect: "Нет соединения с сервером. Проверьте интернет и попробуйте ещё раз."
+        case .invalidCredentials: "Неверный логин или пароль."
+        case .accountDisabled: "Аккаунт отключён. Обратитесь к администратору."
+        case .weakPassword: "Слишком простой пароль. Используйте не меньше 10 символов: буквы, цифры и знаки."
+        case .sendFailed: "Сообщение не отправлено. Нажмите, чтобы повторить."
+        case .attachmentTooLarge: "Файл слишком большой."
+        case .storageFull: "На iPhone закончилось место."
+        case .unknown: "Что-то пошло не так. Попробуйте ещё раз."
         }
     }
 }

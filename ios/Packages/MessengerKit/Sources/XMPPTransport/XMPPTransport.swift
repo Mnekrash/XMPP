@@ -1,7 +1,5 @@
 // XMPPTransport
 //
-// Adapter implementing `MessagingTransport` on top of the XMPP library chosen after spike S1
-// (decision D3). This is the only module allowed to import that library; no library type may
-// cross its public interface.
-//
-// Intentionally empty until the D3 decision gate.
+// Adapter around the XMPP library (Martin 3.2.4, AGPL-3.0 — development/spike use until the licence decision
+// D3 is made; no external TestFlight distribution before that). This is the only module that imports Martin;
+// no Martin type crosses its public interface.

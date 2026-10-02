@@ -1,5 +1,6 @@
 # XcodeGen spec. Generate the project with:  cd ios && xcodegen generate
 # The generated Messenger.xcodeproj is not committed (see .gitignore).
+# Personal values (Team ID, bundle id prefix, server) go into Config/Local.xcconfig (copy Local.xcconfig.example).
 name: Messenger
 
 options:
@@ -7,7 +8,7 @@ options:
   deploymentTarget:
     iOS: "18.0"
   createIntermediateGroups: true
-  developmentLanguage: en
+  developmentLanguage: ru
 
 configs:
   Development: debug
@@ -25,6 +26,9 @@ settings:
     SWIFT_STRICT_CONCURRENCY: complete
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     TARGETED_DEVICE_FAMILY: "1"          # iPhone only
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
 
 packages:
   MessengerKit:
@@ -34,28 +38,37 @@ targets:
   Messenger:
     type: application
     platform: iOS
-    sources: [App/Sources]
+    sources:
+      - App/Sources
+      - App/Resources
     dependencies:
       - package: MessengerKit
-        products: [Domain, Networking, UI]
+        products: [Domain, Networking, AppSecurity, XMPPTransport, Authentication, UI]
       - target: NotificationService
         embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID)
-        INFOPLIST_KEY_CFBundleDisplayName: $(APP_DISPLAY_NAME)
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
     info:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: $(APP_DISPLAY_NAME)
-        UILaunchScreen: {}
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleDevelopmentRegion: ru
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+          UIImageName: LaunchLogo
         UIApplicationSupportsIndirectInputEvents: true
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIBackgroundModes: [remote-notification]
-        NSFaceIDUsageDescription: "Face ID is used to unlock the app when App Lock is enabled."
-        NSMicrophoneUsageDescription: "The microphone is used to record voice messages."
-        NSCameraUsageDescription: "The camera is used to take photos and videos to send."
-        NSPhotoLibraryAddUsageDescription: "Photos you choose to save are added to your library."
+        NSFaceIDUsageDescription: "Face ID используется для разблокировки приложения, если включена блокировка."
+        NSMicrophoneUsageDescription: "Микрофон нужен для записи голосовых сообщений."
+        NSCameraUsageDescription: "Камера нужна, чтобы снимать и отправлять фото и видео."
+        NSPhotoLibraryAddUsageDescription: "Сохранённые вами фото добавляются в медиатеку."
+        ITSAppUsesNonExemptEncryption: false   # development builds only; set after the export-compliance review
         # Server configuration (values come from Config/*.xcconfig; never hardcoded in Swift)
         MessengerXMPPDomain: $(XMPP_DOMAIN)
         MessengerXMPPHost: $(XMPP_HOST)
@@ -63,13 +76,12 @@ targets:
         MessengerMUCDomain: $(MUC_DOMAIN)
         MessengerPushComponentJID: $(PUSH_COMPONENT_JID)
         MessengerAppGroup: $(APP_GROUP_ID)
-        # ITSAppUsesNonExemptEncryption: set after the export-compliance review (docs/08, R10)
     entitlements:
       path: App/Messenger.entitlements
       properties:
+        # Push is needed from S2 on; Xcode's automatic signing enables the capability on the App ID.
+        # App Group / Keychain sharing are added together with the NSE work (S2), not needed for login.
         aps-environment: $(APS_ENVIRONMENT)
-        com.apple.security.application-groups: [$(APP_GROUP_ID)]
-        keychain-access-groups: [$(AppIdentifierPrefix)$(KEYCHAIN_GROUP)]
 
   NotificationService:
     type: app-extension
@@ -82,14 +94,11 @@ targets:
       path: NotificationService/Info.plist
       properties:
         CFBundleDisplayName: NotificationService
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.usernotifications.service
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).NotificationService
-    entitlements:
-      path: NotificationService/NotificationService.entitlements
-      properties:
-        com.apple.security.application-groups: [$(APP_GROUP_ID)]
-        keychain-access-groups: [$(AppIdentifierPrefix)$(KEYCHAIN_GROUP)]
 
 schemes:
   Messenger:

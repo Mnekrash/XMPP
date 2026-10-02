@@ -154,6 +154,12 @@ modules:
     use_mam_for_storage: true
   mod_ping: {}
   mod_privacy: {}
+  # In-band registration is CLOSED (access: none). The module is loaded only so that a logged-in user can change
+  # their own password (XEP-0077), e.g. replacing the temporary password issued by the administrator.
+  mod_register:
+    access: none
+    access_remove: none
+    password_strength: 40
   mod_private: {}
   mod_pubsub:
     db_type: sql

@@ -16,11 +16,11 @@ struct AccountAddressTests {
 }
 
 struct UserFacingErrorTests {
-    @Test(arguments: [UserFacingError.cannotConnect, .invalidCredentials, .accountDisabled, .sendFailed,
+    @Test(arguments: [UserFacingError.cannotConnect, .invalidCredentials, .accountDisabled, .weakPassword, .sendFailed,
                       .attachmentTooLarge, .storageFull, .unknown])
     func messagesHideProtocolDetails(_ error: UserFacingError) {
         let message = error.message.lowercased()
-        for term in ["xmpp", "jid", "stanza", "omemo", "sasl", "tls"] {
+        for term in ["xmpp", "jid", "stanza", "omemo", "sasl", "tls", "server error", "domain"] {
             #expect(!message.contains(term), "'\(term)' leaks into: \(error.message)")
         }
         #expect(!message.isEmpty)

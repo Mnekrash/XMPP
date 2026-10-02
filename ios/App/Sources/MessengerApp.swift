@@ -1,33 +1,53 @@
+import AppSecurity
+import Authentication
 import Domain
 import Networking
 import SwiftUI
 import UI
+import XMPPTransport
 
 @main
 struct MessengerApp: App {
-    private let configuration: Result<ServerConfig, ServerConfig.LoadError>
+    private let model: AppModel?
 
     init() {
-        do {
-            configuration = .success(try ServerConfig(infoDictionary: Bundle.main.infoDictionary ?? [:]))
-        } catch {
-            configuration = .failure(error)
+        guard let config = try? ServerConfig(infoDictionary: Bundle.main.infoDictionary ?? [:]) else {
+            model = nil
+            return
         }
+        let bundleID = Bundle.main.bundleIdentifier ?? "messenger"
+        let connection = AccountConnection(config: config, resource: Self.installResource())
+        let auth = XMPPAuthService(connection: connection,
+                                   credentials: KeychainCredentialStore(service: bundleID + ".credentials"),
+                                   appVersion: Self.version)
+        model = AppModel(auth: auth, diagnostics: auth)
     }
 
     var body: some Scene {
         WindowGroup {
-            switch configuration {
-            case .success:
-                // SKELETON: services are wired in the composition root from Phase 2 on.
-                RootView(authService: nil)
-            case .failure:
+            if let model {
+                RootView(model: model)
+            } else {
                 ContentUnavailableView(
-                    "Unable to start",
+                    "Не удалось запустить",
                     systemImage: "exclamationmark.triangle",
-                    description: Text("This build is misconfigured. Please install the latest version.")
+                    description: Text("Сборка настроена неверно. Установите последнюю версию приложения.")
                 )
             }
         }
+    }
+
+    /// Stable, random per-install connection label (not shown to users, not secret).
+    private static func installResource() -> String {
+        let key = "connectionResource"
+        if let existing = UserDefaults.standard.string(forKey: key) { return existing }
+        let value = "ios-" + UUID().uuidString.prefix(8).lowercased()
+        UserDefaults.standard.set(value, forKey: key)
+        return value
+    }
+
+    private static var version: String {
+        let info = Bundle.main.infoDictionary ?? [:]
+        return "\(info["CFBundleShortVersionString"] as? String ?? "?") (\(info["CFBundleVersion"] as? String ?? "?"))"
     }
 }
