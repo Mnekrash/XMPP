@@ -1,0 +1,135 @@
+===== run 1
+PASS  t01_normal_delivery  (3.0s)
+      · MAM <result id> equals the live <stanza-id by=bob> for all 5 messages
+      · bob@chat.messenger.test: 5 visible, decrypt calls 5, actions {'duplicateServerId': 5, 'inserted': 5}
+PASS  t02_drop_before_ack  (8.0s)
+      · (a) sender reconnect: session resumed; <resumed h> acknowledged the in-flight message; outbox pending 0
+      · (b) sender reconnect: session new; outbox re-sent 1 message(s) with the same app id/origin-id
+      · (b) server archive holds 2 copies of 'before-ack-b' (different stanza-ids, same origin-id)
+      · bob@chat.messenger.test: 2 visible, decrypt calls 2, actions {'duplicateServerId': 3, 'inserted': 2, 'mergedByOriginId': 1}
+PASS  t03_drop_after_send  (3.3s)
+      · bob@chat.messenger.test: 1 visible, decrypt calls 1, actions {'duplicateServerId': 1, 'inserted': 1}
+PASS  t04_sm_resume  (5.9s)
+      · receiver resumed; queued stanzas replayed; MAM catch-up afterwards added nothing
+      · bob@chat.messenger.test: 4 visible, decrypt calls 4, actions {'duplicateServerId': 4, 'inserted': 4}
+PASS  t05_failed_resume  (6.3s)
+      · resume failed → new session; 3 offline deliveries; 4 duplicate copies absorbed
+      · bob@chat.messenger.test: 4 visible, decrypt calls 4, actions {'duplicateServerId': 4, 'inserted': 4}
+PASS  t06_mam_catch_up  (5.3s)
+      · session new; MAM catch-up: 3 pages, 25 results after the cursor
+      · bob@chat.messenger.test: 26 visible, decrypt calls 26, actions {'duplicateServerId': 26, 'inserted': 26}
+PASS  t07_app_restart  (15.3s)
+      · after restart: MAM returned 3 results after the persisted cursor
+      · bob@chat.messenger.test: 6 visible, decrypt calls 3, actions {'duplicateServerId': 3, 'inserted': 3}
+PASS  t08_wifi_interruption  (6.8s)
+      · receiver session after outage: resumed
+      · bob@chat.messenger.test: 20 visible, decrypt calls 20, actions {'duplicateServerId': 20, 'inserted': 20}
+PASS  t09_cellular_reconnect  (14.0s)
+      · sender session resumed, receiver session resumed after 8 s on new TCP connections
+      · bob@chat.messenger.test: 3 visible, decrypt calls 3, actions {'duplicateServerId': 3, 'inserted': 3}
+PASS  t10_duplicate_stanza  (1.9s)
+      · first ingest: inserted; 3 injected copies → ['duplicateServerId', 'duplicateServerId', 'duplicateServerId']
+      · bob@chat.messenger.test: 1 visible, decrypt calls 1, actions {'duplicateServerId': 3, 'inserted': 1}
+PASS  t11_live_and_mam  (2.9s)
+      · MAM returned 8 results, 8 recognised as already-ingested copies
+      · bob@chat.messenger.test: 8 visible, decrypt calls 8, actions {'duplicateServerId': 8, 'inserted': 8}
+PASS  t12_out_of_order  (3.6s)
+      · 10 MAM results ingested in shuffled order + offline copies + 1 live message
+      · bob@chat.messenger.test: 11 visible, decrypt calls 11, actions {'duplicateServerId': 10, 'inserted': 11}
+PASS  t13_delayed  (5.4s)
+      · 2 delayed deliveries; sort keys from <delay> (gap d0→d1 1.20 s, sender gap 1.2 s)
+      · bob@chat.messenger.test: 3 visible, decrypt calls 3, actions {'inserted': 3}
+PASS  t14_own_messages  (4.3s)
+      · sender: MAM copies of own messages merged into outgoing rows (3 merges), status sent
+      · second own device: own messages visible exactly once (carbons + MAM)
+      · bob@chat.messenger.test: 3 visible, decrypt calls 3, actions {'inserted': 3}
+===== run 2
+PASS  t01_normal_delivery  (2.9s)
+      · MAM <result id> equals the live <stanza-id by=bob> for all 5 messages
+      · bob@chat.messenger.test: 5 visible, decrypt calls 5, actions {'duplicateServerId': 5, 'inserted': 5}
+PASS  t02_drop_before_ack  (7.9s)
+      · (a) sender reconnect: session resumed; <resumed h> acknowledged the in-flight message; outbox pending 0
+      · (b) sender reconnect: session new; outbox re-sent 1 message(s) with the same app id/origin-id
+      · (b) server archive holds 2 copies of 'before-ack-b' (different stanza-ids, same origin-id)
+      · bob@chat.messenger.test: 2 visible, decrypt calls 2, actions {'duplicateServerId': 3, 'inserted': 2, 'mergedByOriginId': 1}
+PASS  t03_drop_after_send  (3.3s)
+      · bob@chat.messenger.test: 1 visible, decrypt calls 1, actions {'duplicateServerId': 1, 'inserted': 1}
+PASS  t04_sm_resume  (5.9s)
+      · receiver resumed; queued stanzas replayed; MAM catch-up afterwards added nothing
+      · bob@chat.messenger.test: 4 visible, decrypt calls 4, actions {'duplicateServerId': 4, 'inserted': 4}
+PASS  t05_failed_resume  (6.3s)
+      · resume failed → new session; 3 offline deliveries; 4 duplicate copies absorbed
+      · bob@chat.messenger.test: 4 visible, decrypt calls 4, actions {'duplicateServerId': 4, 'inserted': 4}
+PASS  t06_mam_catch_up  (5.2s)
+      · session new; MAM catch-up: 3 pages, 25 results after the cursor
+      · bob@chat.messenger.test: 26 visible, decrypt calls 26, actions {'duplicateServerId': 26, 'inserted': 26}
+PASS  t07_app_restart  (15.4s)
+      · after restart: MAM returned 3 results after the persisted cursor
+      · bob@chat.messenger.test: 6 visible, decrypt calls 3, actions {'duplicateServerId': 3, 'inserted': 3}
+PASS  t08_wifi_interruption  (6.8s)
+      · receiver session after outage: resumed
+      · bob@chat.messenger.test: 20 visible, decrypt calls 20, actions {'duplicateServerId': 20, 'inserted': 20}
+PASS  t09_cellular_reconnect  (14.0s)
+      · sender session resumed, receiver session resumed after 8 s on new TCP connections
+      · bob@chat.messenger.test: 3 visible, decrypt calls 3, actions {'duplicateServerId': 3, 'inserted': 3}
+PASS  t10_duplicate_stanza  (1.9s)
+      · first ingest: inserted; 3 injected copies → ['duplicateServerId', 'duplicateServerId', 'duplicateServerId']
+      · bob@chat.messenger.test: 1 visible, decrypt calls 1, actions {'duplicateServerId': 3, 'inserted': 1}
+PASS  t11_live_and_mam  (2.9s)
+      · MAM returned 8 results, 8 recognised as already-ingested copies
+      · bob@chat.messenger.test: 8 visible, decrypt calls 8, actions {'duplicateServerId': 8, 'inserted': 8}
+PASS  t12_out_of_order  (3.7s)
+      · 10 MAM results ingested in shuffled order + offline copies + 1 live message
+      · bob@chat.messenger.test: 11 visible, decrypt calls 11, actions {'duplicateServerId': 10, 'inserted': 11}
+PASS  t13_delayed  (5.5s)
+      · 2 delayed deliveries; sort keys from <delay> (gap d0→d1 1.20 s, sender gap 1.2 s)
+      · bob@chat.messenger.test: 3 visible, decrypt calls 3, actions {'inserted': 3}
+PASS  t14_own_messages  (4.4s)
+      · sender: MAM copies of own messages merged into outgoing rows (3 merges), status sent
+      · second own device: own messages visible exactly once (carbons + MAM)
+      · bob@chat.messenger.test: 3 visible, decrypt calls 3, actions {'inserted': 3}
+===== run 3
+PASS  t01_normal_delivery  (3.0s)
+      · MAM <result id> equals the live <stanza-id by=bob> for all 5 messages
+      · bob@chat.messenger.test: 5 visible, decrypt calls 5, actions {'duplicateServerId': 5, 'inserted': 5}
+PASS  t02_drop_before_ack  (8.0s)
+      · (a) sender reconnect: session resumed; <resumed h> acknowledged the in-flight message; outbox pending 0
+      · (b) sender reconnect: session new; outbox re-sent 1 message(s) with the same app id/origin-id
+      · (b) server archive holds 2 copies of 'before-ack-b' (different stanza-ids, same origin-id)
+      · bob@chat.messenger.test: 2 visible, decrypt calls 2, actions {'duplicateServerId': 3, 'inserted': 2, 'mergedByOriginId': 1}
+PASS  t03_drop_after_send  (3.3s)
+      · bob@chat.messenger.test: 1 visible, decrypt calls 1, actions {'duplicateServerId': 1, 'inserted': 1}
+PASS  t04_sm_resume  (6.0s)
+      · receiver resumed; queued stanzas replayed; MAM catch-up afterwards added nothing
+      · bob@chat.messenger.test: 4 visible, decrypt calls 4, actions {'duplicateServerId': 4, 'inserted': 4}
+PASS  t05_failed_resume  (6.4s)
+      · resume failed → new session; 3 offline deliveries; 4 duplicate copies absorbed
+      · bob@chat.messenger.test: 4 visible, decrypt calls 4, actions {'duplicateServerId': 4, 'inserted': 4}
+PASS  t06_mam_catch_up  (5.4s)
+      · session new; MAM catch-up: 3 pages, 25 results after the cursor
+      · bob@chat.messenger.test: 26 visible, decrypt calls 26, actions {'duplicateServerId': 26, 'inserted': 26}
+PASS  t07_app_restart  (15.5s)
+      · after restart: MAM returned 3 results after the persisted cursor
+      · bob@chat.messenger.test: 6 visible, decrypt calls 3, actions {'duplicateServerId': 3, 'inserted': 3}
+PASS  t08_wifi_interruption  (6.8s)
+      · receiver session after outage: resumed
+      · bob@chat.messenger.test: 20 visible, decrypt calls 20, actions {'duplicateServerId': 20, 'inserted': 20}
+PASS  t09_cellular_reconnect  (14.1s)
+      · sender session resumed, receiver session resumed after 8 s on new TCP connections
+      · bob@chat.messenger.test: 3 visible, decrypt calls 3, actions {'duplicateServerId': 3, 'inserted': 3}
+PASS  t10_duplicate_stanza  (1.9s)
+      · first ingest: inserted; 3 injected copies → ['duplicateServerId', 'duplicateServerId', 'duplicateServerId']
+      · bob@chat.messenger.test: 1 visible, decrypt calls 1, actions {'duplicateServerId': 3, 'inserted': 1}
+PASS  t11_live_and_mam  (3.0s)
+      · MAM returned 8 results, 8 recognised as already-ingested copies
+      · bob@chat.messenger.test: 8 visible, decrypt calls 8, actions {'duplicateServerId': 8, 'inserted': 8}
+PASS  t12_out_of_order  (3.7s)
+      · 10 MAM results ingested in shuffled order + offline copies + 1 live message
+      · bob@chat.messenger.test: 11 visible, decrypt calls 11, actions {'duplicateServerId': 10, 'inserted': 11}
+PASS  t13_delayed  (5.5s)
+      · 2 delayed deliveries; sort keys from <delay> (gap d0→d1 1.20 s, sender gap 1.2 s)
+      · bob@chat.messenger.test: 3 visible, decrypt calls 3, actions {'inserted': 3}
+PASS  t14_own_messages  (4.4s)
+      · sender: MAM copies of own messages merged into outgoing rows (3 merges), status sent
+      · second own device: own messages visible exactly once (carbons + MAM)
+      · bob@chat.messenger.test: 3 visible, decrypt calls 3, actions {'inserted': 3}
