@@ -34,7 +34,7 @@ struct LoginView: View {
 
                 VStack(spacing: 12) {
                     TextField("Логин", text: $username)
-                        .textContentType(.username)
+                        .credentialField(.username)
                         .noAutocapitalization()
                         .autocorrectionDisabled()
                         .submitLabel(.next)
@@ -50,7 +50,7 @@ struct LoginView: View {
                                 SecureField("Пароль", text: $password)
                             }
                         }
-                        .textContentType(.password)
+                        .credentialField(.password)
                         .noAutocapitalization()
                         .autocorrectionDisabled()
                         .submitLabel(.go)
@@ -129,4 +129,21 @@ extension View {
         return self
         #endif
     }
+
+    /// Credential autofill hint (iOS); the macOS test build uses a different type, so it is a no-op there.
+    func credentialField(_ field: CredentialField) -> some View {
+        #if os(iOS)
+        switch field {
+        case .username: return textContentType(.username)
+        case .password: return textContentType(.password)
+        case .newPassword: return textContentType(.newPassword)
+        }
+        #else
+        return self
+        #endif
+    }
+}
+
+enum CredentialField {
+    case username, password, newPassword
 }

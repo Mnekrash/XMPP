@@ -32,10 +32,10 @@ struct ChangePasswordView: View {
 
                 VStack(spacing: 12) {
                     SecureField("Новый пароль", text: $newPassword)
-                        .textContentType(.newPassword)
+                        .credentialField(.newPassword)
                         .modifier(FieldBackground())
                     SecureField("Повторите пароль", text: $repeatPassword)
-                        .textContentType(.newPassword)
+                        .credentialField(.newPassword)
                         .modifier(FieldBackground())
                     Text("Не меньше 10 символов. Лучше использовать буквы, цифры и знаки.")
                         .font(.footnote)

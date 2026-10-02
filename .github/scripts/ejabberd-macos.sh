@@ -51,6 +51,7 @@ modules:
   mod_admin_extra: {}
   mod_caps: {}
   mod_disco: {}
+  mod_last: {}           # ban_account reads the last-activity record
   mod_ping: {}
   mod_private: {}
   mod_roster: {}

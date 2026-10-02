@@ -89,7 +89,7 @@ public struct FieldBackground: ViewModifier {
 
 extension Color {
     /// System colour that adapts to light/dark mode on iOS (fallback for the macOS test build).
-    init(uiColorCompatible name: SystemColorName) {
+    public init(uiColorCompatible name: SystemColorName) {
         #if canImport(UIKit)
         switch name {
         case .secondarySystemBackground: self = Color(uiColor: .secondarySystemBackground)
