@@ -20,12 +20,16 @@ Updated: 2026-10-02 · Stage: **technical spikes** (no product feature work; blo
 - NotificationEnvelope (Swift): opens Go-sealed envelopes; fallback rules.
 - MessengerKit Domain/Networking: builds, 37 test cases (Task 2).
 
-## Not verified here (needs macOS / Xcode / devices)
+## Verified in GitHub Actions (CI run #1, 2026-10-02, all 4 jobs green)
 
-- `ios/` app target, UI module, NSE (Task 2 skeleton); `spikes/s2-push/ios` spike app; `spikes/s1-martin-probe`.
-- Real APNs delivery (APNs endpoints unreachable from this environment).
-- The repo `push/Dockerfile` build (module download needs network without the sandbox's TLS-intercepting proxy); CI builds it.
-- `.github/workflows/ci.yml` has never run (GitHub push blocked by a 403 during this session).
+- iOS (macos-15): MessengerKit `swift test`, XcodeGen project generation, unsigned simulator build of the app + NSE.
+- Server smoke test (ubuntu): full stack from fresh volumes incl. the push gateway built from `push/Dockerfile`.
+- Push gateway: gofmt, vet, tests, build. Shell scripts: shellcheck.
+
+## Not verified yet (needs the owner's Mac / devices)
+
+- `spikes/s2-push/ios` spike app and `spikes/s1-martin-probe` (not part of CI).
+- Real APNs delivery (APNs endpoints unreachable from the cloud environment).
 
 ## Not implemented (explicit)
 
