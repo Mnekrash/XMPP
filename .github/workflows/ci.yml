@@ -73,10 +73,12 @@ jobs:
         run: |
           # The Keychain needs a signed host app; ad-hoc signing ("-") needs no team on the simulator.
           xcodebuild test -project ios/Messenger.xcodeproj -scheme Messenger -configuration Development \
-            -destination "id=$SIM_UDID" CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= \
-            | tee "$RUNNER_TEMP/app.log" | grep -E "✔|✘|passed|failed|error:" | tail -40
+            -destination "id=$SIM_UDID" -derivedDataPath "$RUNNER_TEMP/dd" \
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= \
+            | tee "$RUNNER_TEMP/app.log" | grep -E "✔|✘|error:|\*\* (TEST|BUILD)" | tail -40
           test "${PIPESTATUS[0]}" -eq 0
-          APP=$(find ~/Library/Developer/Xcode/DerivedData -path "*Development-iphonesimulator/Messenger Dev.app" -maxdepth 6 | head -1)
+          APP="$RUNNER_TEMP/dd/Build/Products/Development-iphonesimulator/Messenger.app"   # PRODUCT_NAME = target name; "Messenger Dev" is only the display name
+          ls "$APP/PlugIns"
           test -d "$APP/PlugIns/NotificationService.appex" && echo "NSE embedded: $APP/PlugIns/NotificationService.appex"
       - name: Build app for a physical iPhone (generic device, unsigned)
         run: |
