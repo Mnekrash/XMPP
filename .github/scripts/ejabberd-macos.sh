@@ -10,18 +10,37 @@ PREFIX="$(brew --prefix)"
 CTL="$PREFIX/sbin/ejabberdctl"
 CONF="$PREFIX/etc/ejabberd/ejabberd.yml"
 
-# CA + server certificate for the test domain; trust the CA system-wide (Network.framework uses it).
-openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj "/CN=Messenger CI CA" \
-  -keyout "$WORK/ca.key" -out "$WORK/ca.crt" -addext "basicConstraints=critical,CA:TRUE" \
-  -addext "keyUsage=critical,keyCertSign,cRLSign"
-openssl req -newkey rsa:2048 -nodes -subj "/CN=$DOMAIN" -keyout "$WORK/server.key" -out "$WORK/server.csr"
-printf "subjectAltName=DNS:%s\nextendedKeyUsage=serverAuth\n" "$DOMAIN" > "$WORK/ext.cnf"
-openssl x509 -req -in "$WORK/server.csr" -CA "$WORK/ca.crt" -CAkey "$WORK/ca.key" -CAcreateserial -days 2 \
-  -extfile "$WORK/ext.cnf" -out "$WORK/server.crt"
+# CA + server certificate for the test domain; trust the CA system-wide.
+# OpenSSL 3 from Homebrew: the runner's /usr/bin/openssl is LibreSSL, whose -addext produced an extension
+# macOS rejects ("Unknown critical cert extension"). Extensions come from explicit config sections.
+OPENSSL="$(brew --prefix openssl@3 2>/dev/null)/bin/openssl"
+[[ -x "$OPENSSL" ]] || { brew install openssl@3 >/dev/null; OPENSSL="$(brew --prefix openssl@3)/bin/openssl"; }
+cat > "$WORK/ext.cnf" <<CNF
+[req]
+distinguished_name = dn
+[dn]
+[ca]
+basicConstraints = critical,CA:TRUE
+keyUsage = critical,keyCertSign,cRLSign
+subjectKeyIdentifier = hash
+[server]
+basicConstraints = critical,CA:FALSE
+keyUsage = critical,digitalSignature,keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = DNS:$DOMAIN
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid
+CNF
+"$OPENSSL" req -x509 -newkey rsa:2048 -nodes -days 2 -subj "/CN=Messenger CI CA" -config "$WORK/ext.cnf" \
+  -extensions ca -keyout "$WORK/ca.key" -out "$WORK/ca.crt"
+"$OPENSSL" req -newkey rsa:2048 -nodes -subj "/CN=$DOMAIN" -config "$WORK/ext.cnf" \
+  -keyout "$WORK/server.key" -out "$WORK/server.csr"
+"$OPENSSL" x509 -req -in "$WORK/server.csr" -CA "$WORK/ca.crt" -CAkey "$WORK/ca.key" -CAcreateserial -days 2 \
+  -extfile "$WORK/ext.cnf" -extensions server -out "$WORK/server.crt"
 cat "$WORK/server.key" "$WORK/server.crt" "$WORK/ca.crt" > "$WORK/server.pem"
 sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "$WORK/ca.crt"
-# What the system thinks of the server certificate (SSL server policy for the domain); informational.
-security verify-cert -c "$WORK/server.crt" -p ssl -s "$DOMAIN" || echo "warning: verify-cert failed"
+# Fail early if the system does not accept the server certificate (SSL server policy for the domain).
+security verify-cert -c "$WORK/server.crt" -p ssl -s "$DOMAIN"
 
 cat > "$CONF" <<YML
 hosts: ["$DOMAIN"]
