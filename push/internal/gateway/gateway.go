@@ -44,6 +44,8 @@ type Gateway struct {
 	APNs         Sender // nil: deliveries fail with an internal error (APNs not configured)
 	Log          *slog.Logger
 	Now          func() time.Time
+	// CoalesceWindow: at most one push per (device, conversation) within this window (0 = off).
+	CoalesceWindow time.Duration
 }
 
 // LogID is a non-reversible short id for logs (no JIDs or tokens in info logs).
@@ -216,6 +218,15 @@ func (g *Gateway) publish(ctx context.Context, iq, ps *xmpp.Node) string {
 		if until, err := g.Store.MutedUntil(ctx, reg.Node, thread); err == nil && until.After(g.now()) {
 			g.Log.Info("muted, not delivered", "node", LogID(node))
 			return g.result(iq, "")
+		}
+		if g.CoalesceWindow > 0 {
+			won, err := g.Store.ClaimSend(ctx, reg.Node, thread, g.CoalesceWindow)
+			if err != nil {
+				g.Log.Warn("coalescing check failed; sending anyway", "node", LogID(node), "error", err)
+			} else if !won {
+				g.Log.Info("coalesced with a push sent moments ago", "node", LogID(node))
+				return g.result(iq, "")
+			}
 		}
 		if p.E, err = SealEnvelope(reg.DeviceKey, Envelope{V: EnvelopeVersion, Sender: sender, Conv: conv, Count: count}); err != nil {
 			return g.errorReply(iq, "wait", "internal-server-error")

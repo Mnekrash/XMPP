@@ -48,6 +48,9 @@ type Store interface {
 	MarkSuccess(ctx context.Context, node string) error
 	SetMute(ctx context.Context, node, opaqueConv string, until time.Time) error
 	MutedUntil(ctx context.Context, node, opaqueConv string) (time.Time, error)
+	// ClaimSend returns true if no push for (node, conversation) was sent within `window` and records this one.
+	// Atomic across gateway replicas (S3: ejabberd publishes twice for an offline MUC/Sub delivery).
+	ClaimSend(ctx context.Context, node, opaqueConv string, window time.Duration) (bool, error)
 	Count(ctx context.Context) (int, error)
 }
 
@@ -67,6 +70,12 @@ CREATE TABLE IF NOT EXISTS registration (
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     last_success  TIMESTAMPTZ,
     UNIQUE (account_jid, apns_token)
+);
+CREATE TABLE IF NOT EXISTS last_send (
+    node        TEXT NOT NULL REFERENCES registration(node) ON DELETE CASCADE,
+    opaque_conv TEXT NOT NULL,
+    sent_at     TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (node, opaque_conv)
 );
 CREATE TABLE IF NOT EXISTS mute (
     node        TEXT NOT NULL REFERENCES registration(node) ON DELETE CASCADE,
@@ -144,6 +153,19 @@ func (p *Postgres) MutedUntil(ctx context.Context, node, opaqueConv string) (tim
 	return t, err
 }
 
+func (p *Postgres) ClaimSend(ctx context.Context, node, opaqueConv string, window time.Duration) (bool, error) {
+	// Insert, or move sent_at forward only if the previous send is older than the window; RETURNING tells us who won.
+	var one int
+	err := p.pool.QueryRow(ctx, `INSERT INTO last_send (node, opaque_conv, sent_at) VALUES ($1, $2, now())
+		ON CONFLICT (node, opaque_conv) DO UPDATE SET sent_at = now()
+		WHERE last_send.sent_at < now() - make_interval(secs => $3)
+		RETURNING 1`, node, opaqueConv, window.Seconds()).Scan(&one)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
 func (p *Postgres) Count(ctx context.Context) (int, error) {
 	var n int
 	err := p.pool.QueryRow(ctx, `SELECT count(*) FROM registration`).Scan(&n)
@@ -160,11 +182,23 @@ type Memory struct {
 	mu    sync.Mutex
 	regs  map[string]Registration
 	mutes map[[2]string]time.Time
+	sends map[[2]string]time.Time
 }
 
 // NewMemory creates an empty in-memory store.
 func NewMemory() *Memory {
-	return &Memory{regs: map[string]Registration{}, mutes: map[[2]string]time.Time{}}
+	return &Memory{regs: map[string]Registration{}, mutes: map[[2]string]time.Time{}, sends: map[[2]string]time.Time{}}
+}
+
+func (m *Memory) ClaimSend(_ context.Context, node, conv string, window time.Duration) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	k := [2]string{node, conv}
+	if last, ok := m.sends[k]; ok && time.Since(last) < window {
+		return false, nil
+	}
+	m.sends[k] = time.Now()
+	return true, nil
 }
 
 func (m *Memory) Put(_ context.Context, r Registration) error {

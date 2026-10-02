@@ -110,7 +110,10 @@ Documented compromise: our own server and gateway see who messaged whom and when
   - Alternative: rely on a long SM hibernation only. Rejected: fails after the resume timeout or a server restart.
   - Trade-off: MUC/Sub is ejabberd-specific (documented, not an XSF standard). It sits behind
     `GroupService`/`MessagingTransport`, so changing it later is contained.
-  - **Verify in the Phase 8 spike** that MUC/Sub events with OMEMO payloads trigger `mod_push` as expected.
+  - **Measured in S3:** plain MUC membership gives no push to offline members; MUC/Sub does. ejabberd publishes
+    twice per offline MUC/Sub message; the gateway coalesces this (2 s window per device + conversation, atomic
+    in PostgreSQL across replicas). Offline group messages are not delivered from offline storage, so they come from MAM.
+    The push sender for groups is the room JID (no nick).
 - `mod_push_keepalive`: `resume_timeout` 72 h, `wake_on_timeout: true`. Before the hibernated
   session expires, the server sends a silent wake push so the client can reconnect.
 

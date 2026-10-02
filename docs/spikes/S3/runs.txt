@@ -1,0 +1,44 @@
+===== run 1
+PASS  g01_active_member  (5.4s)
+      · joined + online: delivered live, 0 APNs requests
+PASS  g02_offline_plain_member  (5.5s)
+      · plain MUC member offline: 0 APNs requests → offline members get NO push without MUC/Sub
+PASS  g03_offline_mucsub_member  (8.8s)
+      · ejabberd published 2× for one message; gateway sent 1 (coalesced the rest)
+      · MUC/Sub subscriber offline: 1 APNs request; status 200, envelope sender='s3-1790969044451@groups.chat.messenger.test' conv='s3-1790969044451@groups.chat.messenger.test'
+      · after reconnect: offline-storage MUC/Sub events 0; found in own MAM archive: True; found in room MAM archive: True
+PASS  g04_hibernated_member  (11.6s)
+      · joined member hibernated (no MUC/Sub): 1 APNs request(s); status 200, envelope sender='s3-1790969055084@groups.chat.messenger.test' conv='s3-1790969055084@groups.chat.messenger.test'
+PASS  g05_hibernated_member_with_mucsub  (16.4s)
+      · joined + MUC/Sub + hibernated: 1 APNs request(s) for one message
+PASS  g06_muted_group  (5.1s)
+      · ejabberd reports conv='s3-1790969086796@groups.chat.messenger.test' for MUC/Sub pushes; after muting it: 0 APNs requests
+PASS  g07_multiple_devices  (5.7s)
+      · 2 devices offline: APNs requests for tokens ['aaaa', 'bbbb']
+PASS  g08_disconnected_then_mam  (11.8s)
+      · burst of 3 messages within 0.6 s while disconnected → 1 APNs request(s) (coalesced)
+      · 2 messages 2.5 s apart → 2 APNs requests
+PASS  g09_coalescing_across_replicas  (53.1s)
+      · 4 group messages to an offline subscriber: APNs requests per message [1, 1, 1, 1]; coalesced on instance1/instance2: [7, 0]
+===== run 2
+PASS  g01_active_member  (5.5s)
+      · joined + online: delivered live, 0 APNs requests
+PASS  g02_offline_plain_member  (5.5s)
+      · plain MUC member offline: 0 APNs requests → offline members get NO push without MUC/Sub
+PASS  g03_offline_mucsub_member  (8.8s)
+      · ejabberd published 2× for one message; gateway sent 1 (coalesced the rest)
+      · MUC/Sub subscriber offline: 1 APNs request; status 200, envelope sender='s3-1790969184652@groups.chat.messenger.test' conv='s3-1790969184652@groups.chat.messenger.test'
+      · after reconnect: offline-storage MUC/Sub events 0; found in own MAM archive: True; found in room MAM archive: True
+PASS  g04_hibernated_member  (11.7s)
+      · joined member hibernated (no MUC/Sub): 1 APNs request(s); status 200, envelope sender='s3-1790969195418@groups.chat.messenger.test' conv='s3-1790969195418@groups.chat.messenger.test'
+PASS  g05_hibernated_member_with_mucsub  (16.4s)
+      · joined + MUC/Sub + hibernated: 1 APNs request(s) for one message
+PASS  g06_muted_group  (5.2s)
+      · ejabberd reports conv='s3-1790969227038@groups.chat.messenger.test' for MUC/Sub pushes; after muting it: 0 APNs requests
+PASS  g07_multiple_devices  (5.7s)
+      · 2 devices offline: APNs requests for tokens ['aaaa', 'bbbb']
+PASS  g08_disconnected_then_mam  (11.8s)
+      · burst of 3 messages within 0.6 s while disconnected → 1 APNs request(s) (coalesced)
+      · 2 messages 2.5 s apart → 2 APNs requests
+PASS  g09_coalescing_across_replicas  (53.1s)
+      · 4 group messages to an offline subscriber: APNs requests per message [1, 1, 1, 1]; coalesced on instance1/instance2: [8, 3]

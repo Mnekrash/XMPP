@@ -143,3 +143,22 @@ func TestMuteSuppressesDeliveryAndForeignDomainCannotRegister(t *testing.T) {
 		t.Fatalf("foreign domain registered: %s", out)
 	}
 }
+
+func TestDuplicatePublishWithinWindowIsCoalesced(t *testing.T) {
+	g, f := newGW()
+	g.CoalesceWindow = 2 * time.Second
+	node, secret := register(t, g, "bob@chat.test/phone")
+	for i := 0; i < 2; i++ { // ejabberd publishes twice for one offline MUC/Sub message (S3)
+		out := g.HandleIQ(context.Background(), parse(t, publish(node, secret, "room@groups.chat.test", "")))
+		if !strings.Contains(out, "type='result'") {
+			t.Fatalf("publish %d: %s", i, out)
+		}
+	}
+	if len(f.calls) != 1 {
+		t.Fatalf("expected 1 APNs request, got %d", len(f.calls))
+	}
+	g.HandleIQ(context.Background(), parse(t, publish(node, secret, "other@chat.test", "")))
+	if len(f.calls) != 2 {
+		t.Fatalf("a different conversation must not be coalesced, got %d", len(f.calls))
+	}
+}

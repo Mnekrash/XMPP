@@ -3,6 +3,7 @@ package config
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func lookupFrom(m map[string]string) func(string) (string, bool) {
@@ -25,7 +26,7 @@ func TestFromEnvValid(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if cfg.Environment != Staging || cfg.HTTPAddr != ":8080" {
+	if cfg.Environment != Staging || cfg.HTTPAddr != ":8080" || cfg.CoalesceWindow != 2*time.Second {
 		t.Fatalf("unexpected config: %+v", cfg)
 	}
 }

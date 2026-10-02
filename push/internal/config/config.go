@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 // Environment selects the APNs endpoint: development uses the sandbox.
@@ -26,6 +27,7 @@ type Config struct {
 	ComponentSecret string
 	HTTPAddr        string
 	DatabaseURL     string
+	CoalesceWindow  time.Duration
 
 	// APNs token authentication. KeyFile empty = APNs disabled (allowed only in development).
 	APNsKeyFile string
@@ -66,6 +68,14 @@ func FromEnv(lookup func(string) (string, bool)) (Config, error) {
 	}
 
 	var errs []error
+	cfg.CoalesceWindow = 2 * time.Second
+	if v := get("PUSH_COALESCE_WINDOW"); v != "" {
+		d, err := time.ParseDuration(v)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("PUSH_COALESCE_WINDOW: %w", err))
+		}
+		cfg.CoalesceWindow = d
+	}
 	switch cfg.Environment {
 	case Development, Staging, Production:
 	default:

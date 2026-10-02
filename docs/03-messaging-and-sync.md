@@ -101,6 +101,9 @@ on connect:
        else: page forward  <set><after>cursor</after><max>100</max></set>  until <fin complete='true'>
        each page: ingest all → commit → update cursor (crash-safe: resume from the last committed page)
 older history: fetched lazily when the user scrolls up (RSM <before> oldestStanzaId), per conversation
+groups: MUC/Sub messages that arrived while offline are NOT in offline storage (S3) → they come from the own archive
+        (user_mucsub_from_muc_archive) and/or the room archive; identical messages there carry different stanza-ids
+        (by= own JID vs by= room), so the origin-id rule deduplicates them
 ```
 
 - Live messages that arrive during catch-up go through the same dedup, so overlap is harmless.

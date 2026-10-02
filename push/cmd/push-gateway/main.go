@@ -73,7 +73,8 @@ func run(logger *slog.Logger) error {
 		logger.Warn("APNs disabled (development, no APNS_KEY_FILE)")
 	}
 
-	gw := &gateway.Gateway{XMPPDomain: cfg.XMPPDomain, ComponentJID: cfg.ComponentJID, Store: st, APNs: sender, Log: logger}
+	gw := &gateway.Gateway{XMPPDomain: cfg.XMPPDomain, ComponentJID: cfg.ComponentJID, Store: st, APNs: sender, Log: logger,
+		CoalesceWindow: cfg.CoalesceWindow}
 	comp := &xmpp.Component{Addr: cfg.ComponentAddr, Domain: cfg.ComponentJID, Secret: cfg.ComponentSecret, Log: logger}
 	go comp.Run(ctx, gw.Handle)
 
