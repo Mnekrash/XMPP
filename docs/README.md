@@ -35,8 +35,8 @@ Each decision states the chosen approach, the main alternative, and why. The lin
 |----|----------|--------|------------------|------------|
 | D1 | XMPP server | **ejabberd 26.x** | Prosody 13.x | Native PostgreSQL schema; built-in `mod_push` + `mod_push_keepalive`; MUC/Sub for offline group delivery; full admin command set (`ban_account`, `srg_*`, `set_vcard`) for a CLI without custom code |
 | D2 | Server DB | **PostgreSQL 17** | SQLite / Mnesia | Production-grade, backups, supported by ejabberd SQL backend |
-| D3 | iOS XMPP transport | **OPEN — decided after spike S1.** Preferred: an existing library behind `MessagingTransport` (Martin is the primary candidate) | Own minimal transport | Avoid writing an XMPP stack from scratch unless a spike proves it necessary. Martin is AGPL-3.0 **or** commercially licensed by Tigase; the licence terms must be obtained, not assumed |
-| D4 | OMEMO 2 | **OPEN — decided after spike S1.** Candidates: Martin-OMEMO (if it supports OMEMO 2 and the licence fits), another existing implementation, or our own **protocol/state layer only** on established crypto libraries | Own crypto primitives (forbidden) | Never implement primitives ourselves. If we implement anything, it is the XEP-0384 state machine on top of reviewed libraries |
+| D3 | iOS XMPP transport | **OPEN. Measured in S1; waiting on the macOS probe run + Tigase licence terms.** Exit criterion also includes re-running the S4 harness with the chosen transport. Preferred: an existing library behind `MessagingTransport` (Martin is the primary candidate) | Own minimal transport | Avoid writing an XMPP stack from scratch unless a spike proves it necessary. Martin is AGPL-3.0 **or** commercially licensed by Tigase; the licence terms must be obtained, not assumed |
+| D4 | OMEMO 2 | **DECIDED by S1 (2026-10-02): own XEP-0384 protocol/state layer** on swift-crypto/CryptoKit + libsodium + swift-protobuf; 13/13 interop scenarios vs python-twomemo, 3 runs. Martin-OMEMO excluded (legacy namespace only). Was: OPEN — Candidates: Martin-OMEMO (if it supports OMEMO 2 and the licence fits), another existing implementation, or our own **protocol/state layer only** on established crypto libraries | Own crypto primitives (forbidden) | Never implement primitives ourselves. If we implement anything, it is the XEP-0384 state machine on top of reviewed libraries |
 | D5 | Local DB | **SQLite via GRDB** + FTS5 | SwiftData / Core Data | FTS5 search, explicit tested migrations, keyset pagination, safe multi-process access (Notification Service Extension) |
 | D6 | Push gateway | **Own small Go service**, XEP-0114 component → APNs | Conversations' `p2` (Java) | Privacy control over the payload (encrypted sender), minimal surface, replaceable |
 | D7 | Groups | **MUC (XEP-0045)**, members-only + non-anonymous, plus **ejabberd MUC/Sub** for offline delivery | MIX (XEP-0369) | MIX is not production-ready in servers or clients; plain MUC loses offline push |
@@ -70,6 +70,9 @@ Changed or added by the owner:
 7. **Third-party client compatibility is not a requirement, but standards compliance is** (where
    practical): it gives testability and avoids proprietary protocol behaviour.
 8. **An external security review is mandatory before the production release.** It does not block Task 2.
+
+Spike status (2026-10-02): S1 PARTIAL (OMEMO PASS; transport pending), S4 PASS,
+S2 and S3 server side measured and passing; their device runs are pending (owner). See `docs/spikes/`.
 
 Next milestone after the skeleton (Task 2): the four spikes S1–S4. Each spike report is recorded in `docs/spikes/`
 as PASS / FAIL / PARTIAL with observed behaviour and unresolved limitations.

@@ -1,53 +1,42 @@
 # Project Status
 
-Updated: 2026-10-02 · Stage: **Task 2 — project skeleton** (no feature implementation).
-Next milestone: spikes S1–S4 ([08 §3](08-phases-and-risks.md#3-mandatory-technical-spikes)).
+Updated: 2026-10-02 · Stage: **technical spikes** (no product feature work; blocked by the owner's rule until S1 and S4 are PASS).
 
-## Verified (executed in a Linux container)
+## Spikes
 
-| Area | What was run | Result |
-|------|--------------|--------|
-| Server stack | `scripts/dev-smoke.sh` on **fresh volumes**: render config → `compose up --wait` → cert sync → two temporary accounts → smoke test → cleanup | PASS (all 14 checks) |
-| Smoke checks | direct TLS on 5223 with CA validation; SCRAM-SHA-256 and PLAIN not offered; Stream Management; shared roster; Carbons; MAM, Push, Stanza-ID, PEP publish-options on the account; HTTP Upload discovery; message delivery with `origin-id` and server `stanza-id` | PASS |
-| Plaintext | 5222 announces `<starttls><required/>` | PASS |
-| HTTP Upload | slot request → PUT through Caddy (201) → GET returns identical bytes | PASS (manual) |
-| Admin | `admin.sh init / create / list / disable / enable`; a disabled account cannot log in; username validation | PASS (manual) |
-| PostgreSQL | init script creates separate roles/DBs; ejabberd creates its schema (32 tables) | PASS |
-| Config rendering | values with `&` and `/` render correctly; `$`, `"`, `\` are rejected | PASS |
-| Push gateway | `go vet`, `go test` (config), Docker build, `/healthz` healthcheck | PASS |
-| Shell scripts | `shellcheck` | clean |
-| Swift (Domain, Networking + placeholder modules) | Swift 6.2 on Linux, Swift 6 mode, `-warnings-as-errors`; 37 test cases | PASS |
+| Spike | Verdict | Evidence | What is missing |
+|-------|---------|----------|-----------------|
+| S1 OMEMO 2 / library | **PARTIAL**: OMEMO part PASS, transport part open | [S1 report](spikes/S1-omemo-library.md): 13/13 interop scenarios × 3 runs, 8 unit tests | macOS run of `spikes/s1-martin-probe`; Tigase licence terms |
+| S4 MAM / reconnect / dedup | **PASS** | [S4 report](spikes/S4-mam-reconnect-dedup.md): 14 scenarios × 3 runs, 6 unit tests | re-run with the final transport (D3 exit criterion) |
+| S2 one-to-one push | **pending device run** (server side 11/11) | [S2 report](spikes/S2-push.md) | owner: device runbook D1–D15 (Mac, iPhone, `.p8`) |
+| S3 group push | **pending device run** (server side 9/9 × 2) | [S3 report](spikes/S3-muc-push.md) | owner: device runbook G1–G7 |
 
-## Not verified here (needs macOS / Xcode — runs in CI job `ios`)
+## Verified in this environment (Linux container)
 
-- `ios/project.yml` (XcodeGen), app target, NotificationService target, entitlements, xcconfigs.
-- `UI` module (SwiftUI) and `MessengerApp.swift`.
-- `.github/workflows/ci.yml`: the YAML syntax is valid; the workflow itself has not run yet.
+- Server stack (ejabberd 26.09, PostgreSQL 17, Caddy, push gateway × 2): `scripts/dev-smoke.sh` 14/14 from fresh volumes.
+- OMEMOKit (Swift 6.2): builds, 8 unit tests, live interop with python-omemo/twomemo through ejabberd.
+- SyncCore (Swift 6.2, GRDB 7.11.1): builds, 6 unit tests, 14 live fault-injection scenarios.
+- Push gateway (Go 1.25): vet + tests; real XEP-0114 link to ejabberd; server-side push suites S2/S3.
+- NotificationEnvelope (Swift): opens Go-sealed envelopes; fallback rules.
+- MessengerKit Domain/Networking: builds, 37 test cases (Task 2).
 
-## Exists (skeleton)
+## Not verified here (needs macOS / Xcode / devices)
 
-- `ios/`: XcodeGen project (app + NSE, iOS 18, Swift 6), three environments via xcconfig, `MessengerKit`
-  package with module boundaries per docs/01 §2, domain models and protocols, `ServerConfig` loading,
-  login screen.
-- `server/`, `deploy/`, `scripts/`: ejabberd 26.09 + PostgreSQL 17 + Caddy stack, config rendering,
-  certificate sync, account administration, smoke test.
-- `push/`: Go gateway with configuration loading and health endpoint.
-- `docs/spikes/TEMPLATE.md` for spike reports.
+- `ios/` app target, UI module, NSE (Task 2 skeleton); `spikes/s2-push/ios` spike app; `spikes/s1-martin-probe`.
+- Real APNs delivery (APNs endpoints unreachable from this environment).
+- The repo `push/Dockerfile` build (module download needs network without the sandbox's TLS-intercepting proxy); CI builds it.
+- `.github/workflows/ci.yml` has never run (GitHub push blocked by a 403 during this session).
 
-## Not implemented (explicitly)
+## Not implemented (explicit)
 
-| Item | Where it is marked | Planned |
-|------|--------------------|---------|
-| Login / XMPP connection (`LoginView` shows "not available in this build") | `// SKELETON:` in `LoginView.swift`, `MessengerApp.swift` | Phase 2, after the D3 gate |
-| All service implementations (Messaging, SyncEngine, Persistence/GRDB, OMEMO, Attachments, Push, Authentication, AppSecurity) | module files say "Intentionally empty" | Phases 1–9 |
-| XMPP library and OMEMO implementation | open decisions D3/D4 | after spike S1 |
-| NSE beyond level 0 (passes the generic alert through unchanged) | `// SKELETON` doc comment | after spike S2 |
-| Push gateway: XEP-0114 component, registration, APNs, cleanup on account disable/delete | `/healthz` reports `"component": "not_implemented"`; `admin.sh` prints a note | after spike S2 |
+| Item | Where marked | Planned |
+|------|--------------|---------|
+| Product login / XMPP connection / services | `// SKELETON` in `ios/` | after the D3 gate |
+| OMEMO production hardening (encryption at rest, trust UI, heartbeats, actor wrapper) | S1 report "Not in the prototype" | Phase 5 |
 | Backups, monitoring beyond healthchecks | deploy/README.md | Phase 11 |
-| `ITSAppUsesNonExemptEncryption` / export compliance | comment in `project.yml` | Phase 11 (legal input) |
+| `ITSAppUsesNonExemptEncryption` / export compliance | `ios/project.yml` comment | Phase 11 |
 
-## Known issues / limitations
+## Known issues
 
-- In development, ejabberd logs warnings about the 12 h local-CA leaf certificate and about service subdomains
-  (`groups.`, `upload.`, `pubsub.`) without certificates. Clients only connect to the XMPP domain, so this is harmless.
-- `ghcr.io` image downloads are blocked in the build environment, so the stack uses `ejabberd/ecs` from Docker Hub.
+- Dev-only certificate warnings in ejabberd logs (local CA, 12 h leaf; service subdomains without certificates).
+- `ghcr.io` image pulls are blocked in this environment; the stack uses `ejabberd/ecs:26.09` from Docker Hub.
