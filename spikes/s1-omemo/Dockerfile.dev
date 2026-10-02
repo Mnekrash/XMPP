@@ -1,0 +1,4 @@
+# Build/test image for OMEMOKit on Linux: Swift 6.2 + libsodium + protoc.
+FROM swift:6.2
+RUN apt-get update -qq && apt-get install -y -qq libsodium-dev protobuf-compiler pkg-config >/dev/null \
+    && rm -rf /var/lib/apt/lists/*

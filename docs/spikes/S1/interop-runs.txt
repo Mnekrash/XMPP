@@ -1,0 +1,135 @@
+===== run 1
+PASS  s01_initial_x3dh  (4.0s)
+      · py→swift: key exchange accepted, Swift consumed pre-key 97
+      · swift→py: python built a passive session from the Swift key exchange
+PASS  s02_prekey_consumption  (4.7s)
+      · Swift: pk 78 removed from published bundle, 99 pre-keys published after refill
+      · python: pk 99 removed from its published bundle after the Swift key exchange
+PASS  s03_regular_ratchet  (3.1s)
+      · both directions use plain OMEMOAuthenticatedMessage after confirmation
+PASS  s04_bidirectional  (15.8s)
+      · 60 messages, random bursts, all decrypted on both sides
+PASS  s05_multiple_recipient_devices  (4.5s)
+      · Swift→python: one <encrypted> with keys for 2 alice devices + own other device
+      · python→Swift: keys for 2 Swift devices, both decrypt
+PASS  s06_new_sender_device  (4.0s)
+      · new python device: Swift built a passive session on first message and includes it after refresh
+      · new Swift device: python accepted its key exchange
+PASS  s07_removed_device  (5.1s)
+      · Swift stops encrypting for a device removed from the device list
+      · python stops encrypting for a Swift device removed from the device list
+PASS  s08_bundle_refresh  (7.1s)
+      · Swift SPK rotated 1→2; python built its session against the new SPK
+      · python SPK rotated 1→2; Swift fetched the refreshed bundle and used it
+PASS  s09_stale_prekeys  (12.8s)
+      · (a) consumed pre-key rejected by python: KeyExchangeFailed
+      · (a) recovery: Swift refreshed the bundle, new key exchange accepted
+      · (b) expired SPK rejected by python: KeyExchangeFailed
+      · (b) recovery after refresh accepted
+      · (c) Swift as receiver of an expired-SPK key exchange: unit test signedPreKeyRotatedTwiceIsRejected (python-omemo always re-downloads bundles, so it cannot be made to send one)
+PASS  s10_session_recreation  (8.7s)
+      · Swift without session: noSession(jid: "alice@chat.messenger.test", deviceId: 1772622297) (expected)
+      · Swift re-initiated; python replaced its session and continued
+      · python replace_sessions → Swift accepted the new key exchange (kex in next message: True)
+PASS  s11_out_of_order  (4.1s)
+      · python→Swift order 0,5,2,1,4,3 decrypted
+      · re-delivery of an already decrypted message rejected by Swift: duplicateMessage
+      · Swift→python order 3,0,5,1,2,4 decrypted
+PASS  s12_delayed  (4.7s)
+      · 3 messages stored by ejabberd while offline, delivered with <delay>, decrypted after process restart
+      · message held back across 3 DH ratchet rounds decrypted via skipped keys of the old chain
+PASS  s13_muc  (6.4s)
+      · room disco: muc_membersonly, muc_nonanonymous, muc_persistent
+      · Swift groupchat: keys for 2 devices, both python members decrypt, SCE <to/> = room
+      · python groupchat decrypted by Swift and python members
+      · room MAM archive: 2 messages stored, 0 contain plaintext
+===== run 2
+PASS  s01_initial_x3dh  (3.9s)
+      · py→swift: key exchange accepted, Swift consumed pre-key 95
+      · swift→py: python built a passive session from the Swift key exchange
+PASS  s02_prekey_consumption  (4.8s)
+      · Swift: pk 2 removed from published bundle, 99 pre-keys published after refill
+      · python: pk 47 removed from its published bundle after the Swift key exchange
+PASS  s03_regular_ratchet  (3.1s)
+      · both directions use plain OMEMOAuthenticatedMessage after confirmation
+PASS  s04_bidirectional  (15.9s)
+      · 60 messages, random bursts, all decrypted on both sides
+PASS  s05_multiple_recipient_devices  (4.2s)
+      · Swift→python: one <encrypted> with keys for 2 alice devices + own other device
+      · python→Swift: keys for 2 Swift devices, both decrypt
+PASS  s06_new_sender_device  (3.9s)
+      · new python device: Swift built a passive session on first message and includes it after refresh
+      · new Swift device: python accepted its key exchange
+PASS  s07_removed_device  (5.1s)
+      · Swift stops encrypting for a device removed from the device list
+      · python stops encrypting for a Swift device removed from the device list
+PASS  s08_bundle_refresh  (7.1s)
+      · Swift SPK rotated 1→2; python built its session against the new SPK
+      · python SPK rotated 1→2; Swift fetched the refreshed bundle and used it
+PASS  s09_stale_prekeys  (12.8s)
+      · (a) consumed pre-key rejected by python: KeyExchangeFailed
+      · (a) recovery: Swift refreshed the bundle, new key exchange accepted
+      · (b) expired SPK rejected by python: KeyExchangeFailed
+      · (b) recovery after refresh accepted
+      · (c) Swift as receiver of an expired-SPK key exchange: unit test signedPreKeyRotatedTwiceIsRejected (python-omemo always re-downloads bundles, so it cannot be made to send one)
+PASS  s10_session_recreation  (8.7s)
+      · Swift without session: noSession(jid: "alice@chat.messenger.test", deviceId: 1433861727) (expected)
+      · Swift re-initiated; python replaced its session and continued
+      · python replace_sessions → Swift accepted the new key exchange (kex in next message: True)
+PASS  s11_out_of_order  (4.0s)
+      · python→Swift order 0,5,2,1,4,3 decrypted
+      · re-delivery of an already decrypted message rejected by Swift: duplicateMessage
+      · Swift→python order 3,0,5,1,2,4 decrypted
+PASS  s12_delayed  (4.7s)
+      · 3 messages stored by ejabberd while offline, delivered with <delay>, decrypted after process restart
+      · message held back across 3 DH ratchet rounds decrypted via skipped keys of the old chain
+PASS  s13_muc  (6.3s)
+      · room disco: muc_membersonly, muc_nonanonymous, muc_persistent
+      · Swift groupchat: keys for 2 devices, both python members decrypt, SCE <to/> = room
+      · python groupchat decrypted by Swift and python members
+      · room MAM archive: 2 messages stored, 0 contain plaintext
+===== run 3
+PASS  s01_initial_x3dh  (4.0s)
+      · py→swift: key exchange accepted, Swift consumed pre-key 3
+      · swift→py: python built a passive session from the Swift key exchange
+PASS  s02_prekey_consumption  (4.7s)
+      · Swift: pk 97 removed from published bundle, 99 pre-keys published after refill
+      · python: pk 93 removed from its published bundle after the Swift key exchange
+PASS  s03_regular_ratchet  (3.0s)
+      · both directions use plain OMEMOAuthenticatedMessage after confirmation
+PASS  s04_bidirectional  (15.9s)
+      · 60 messages, random bursts, all decrypted on both sides
+PASS  s05_multiple_recipient_devices  (4.2s)
+      · Swift→python: one <encrypted> with keys for 2 alice devices + own other device
+      · python→Swift: keys for 2 Swift devices, both decrypt
+PASS  s06_new_sender_device  (3.8s)
+      · new python device: Swift built a passive session on first message and includes it after refresh
+      · new Swift device: python accepted its key exchange
+PASS  s07_removed_device  (5.1s)
+      · Swift stops encrypting for a device removed from the device list
+      · python stops encrypting for a Swift device removed from the device list
+PASS  s08_bundle_refresh  (7.2s)
+      · Swift SPK rotated 1→2; python built its session against the new SPK
+      · python SPK rotated 1→2; Swift fetched the refreshed bundle and used it
+PASS  s09_stale_prekeys  (12.7s)
+      · (a) consumed pre-key rejected by python: KeyExchangeFailed
+      · (a) recovery: Swift refreshed the bundle, new key exchange accepted
+      · (b) expired SPK rejected by python: KeyExchangeFailed
+      · (b) recovery after refresh accepted
+      · (c) Swift as receiver of an expired-SPK key exchange: unit test signedPreKeyRotatedTwiceIsRejected (python-omemo always re-downloads bundles, so it cannot be made to send one)
+PASS  s10_session_recreation  (8.6s)
+      · Swift without session: noSession(jid: "alice@chat.messenger.test", deviceId: 1078985000) (expected)
+      · Swift re-initiated; python replaced its session and continued
+      · python replace_sessions → Swift accepted the new key exchange (kex in next message: True)
+PASS  s11_out_of_order  (4.0s)
+      · python→Swift order 0,5,2,1,4,3 decrypted
+      · re-delivery of an already decrypted message rejected by Swift: duplicateMessage
+      · Swift→python order 3,0,5,1,2,4 decrypted
+PASS  s12_delayed  (4.8s)
+      · 3 messages stored by ejabberd while offline, delivered with <delay>, decrypted after process restart
+      · message held back across 3 DH ratchet rounds decrypted via skipped keys of the old chain
+PASS  s13_muc  (6.3s)
+      · room disco: muc_membersonly, muc_nonanonymous, muc_persistent
+      · Swift groupchat: keys for 2 devices, both python members decrypt, SCE <to/> = room
+      · python groupchat decrypted by Swift and python members
+      · room MAM archive: 2 messages stored, 0 contain plaintext

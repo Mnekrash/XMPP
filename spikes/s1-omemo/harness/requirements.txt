@@ -1,0 +1,5 @@
+slixmpp==1.17.0
+slixmpp-omemo==2.2.0
+omemo==2.1.0
+twomemo==2.1.0
+oldmemo==2.1.0
