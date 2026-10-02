@@ -140,6 +140,22 @@ pick → (image: downscale to ≤ 2560 px, strip EXIF/GPS by re-encoding; video:
        duration, waveform, inline thumbnail) inside the OMEMO envelope
 ```
 
+### 4.1 Metadata classification
+
+Anything not listed as "outside" travels only inside the OMEMO-encrypted envelope.
+
+| Item | Where | Classification |
+|------|-------|----------------|
+| File bytes, thumbnail/preview, original filename, media type, dimensions, duration, waveform, caption, key, nonce, hashes | **inside** the envelope only | sensitive |
+| Upload filename | outside (slot request, URL) | non-sensitive: random UUID, no extension |
+| Upload content type | outside | non-sensitive: always `application/octet-stream` |
+| Ciphertext size | outside (slot request, server storage) | non-sensitive, accepted: needed for the upload quota. Padding to size buckets is a possible hardening step |
+| Upload/download time, uploader account | server logs | metadata, accepted (same as message metadata) |
+
+A unit test in `AttachmentsTests` asserts that the slot request and the HTTP PUT carry no data from the sensitive row.
+
+### 4.2 Thumbnails, download, cache, voice
+
 - Thumbnail: generated on the device (ImageIO), ≤ 64 px longest side, JPEG q 0.5, ≤ 3 KB, embedded
   **inside the encrypted envelope**. No thumbnail is ever uploaded separately.
 - Download: auto-download policy (Settings ▸ Storage): photos and voice on any network, video/files on
@@ -187,6 +203,7 @@ message(id TEXT PK, conversation_id TEXT NOT NULL REFERENCES conversation ON DEL
         sort_key REAL NOT NULL, sent_at REAL, received_at REAL,
         edited_at REAL, retracted INTEGER DEFAULT 0, deleted_locally INTEGER DEFAULT 0,
         status INTEGER NOT NULL,                           -- sending/sent/delivered/read/failed
+        source INTEGER NOT NULL,                           -- live/carbon/mam/transfer (future history transfer)
         encryption INTEGER NOT NULL,                       -- 0 none(system), 2 omemo2
         trust_at_receipt INTEGER, error_code TEXT)
 CREATE UNIQUE INDEX message_archive ON message(archive_jid, stanza_id) WHERE stanza_id IS NOT NULL;

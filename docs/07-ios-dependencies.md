@@ -16,7 +16,7 @@
 |------|-----------|
 | UI | SwiftUI; UIKit for the chat list/composer (`UICollectionView`, `UITextView`) |
 | Socket + TLS | Network.framework (`NWConnection`, `NWProtocolTLS`), `NWPathMonitor` |
-| XML streaming | libxml2 push parser (`xmlCreatePushParserCtxt`, part of the iOS SDK) |
+| XML streaming | provided by the chosen XMPP library (libxml2 push parser only if we end up writing our own transport) |
 | HTTP upload/download | URLSession (background sessions) |
 | Crypto | CryptoKit (X25519, Ed25519, AES-GCM, HKDF, HMAC, SHA-2), CommonCrypto (AES-CBC) |
 | Secrets | Security.framework (Keychain) |
@@ -28,45 +28,57 @@
 
 ## 3. Third-party candidates
 
-### 3.1 XMPP client library
+### 3.1 XMPP transport — OPEN, decided by spike S1
 
-| Option | Language / licence | Maintenance | OMEMO | Verdict |
-|--------|--------------------|-------------|-------|---------|
-| **Martin** (Tigase) | Swift / **AGPL-3.0** (commercial licence on request) | Active | MartinOMEMO: legacy OMEMO via libsignal-protocol-c | Rejected by default: AGPL would force the whole app under AGPL. Legacy OMEMO only |
-| XMPPFramework | Obj-C / BSD | Low activity | Legacy OMEMO module, outdated | Rejected: Obj-C, delegate-based, aging |
-| xmpp-rs (tokio-xmpp) via UniFFI | Rust / MPL-2.0 | Active | No OMEMO 2 | Rejected: adds a Rust toolchain + FFI for little gain |
-| **Own `XMPPCore`** | Swift / ours | — | — | **Chosen** |
+Preference: **use an existing transport library behind `MessagingTransport`.** We write our own only if
+the spike shows it is necessary.
 
-Why our own client layer is acceptable here:
+| Option | Language / licence | What must be confirmed in S1 |
+|--------|--------------------|------------------------------|
+| **Martin** (Tigase) — primary candidate | Swift; AGPL-3.0 **or commercial licence from Tigase** | Commercial licence terms and price; Swift 6 / strict-concurrency compatibility; SM resume, MAM paging, carbons, MUC, MUC/Sub (ejabberd), XEP-0357 enable with publish-options, HTTP Upload; behaviour on network-path change; how much its Combine-based API leaks through our adapter |
+| XMPPFramework | Obj-C / BSD | Fallback only: low maintenance activity, Obj-C delegates |
+| xmpp-rs via UniFFI | Rust / MPL-2.0 | Only if both of the above fail: adds a Rust toolchain + FFI |
+| Own minimal transport | Swift / ours | Only if the candidates fail on licence or on reliability scenarios from S4. Scope would be limited to the XEP matrix |
 
-- Closed system: one server (ejabberd, pinned version), one client. We implement exactly the XEPs in
-  [06-xep-matrix.md](06-xep-matrix.md), not the whole ecosystem.
-- Estimated scope ~6–9 k lines: stream + SASL SCRAM + bind + SM + disco/caps + roster + messages +
-  carbons + MAM + PEP/pubsub subset + MUC/MUC-Sub + upload slot + push enable + ad-hoc command.
-- Hidden behind `MessagingTransport`. If Tigase licensing is negotiated later, swapping is contained.
-- Testing: scripted server-transcript tests (no network) + integration tests against dockerized ejabberd.
+Rule regardless of the choice: no library type crosses the `MessagingTransport` boundary. The adapter
+module (`XMPPTransport`) is the only code that imports the library.
 
-### 3.2 OMEMO / Signal-protocol crypto
+### 3.2 OMEMO 2 — OPEN, decided by spike S1
 
-| Option | Licence | Protocol | Verdict |
-|--------|---------|----------|---------|
-| libsignal (Signal) Swift bindings | **AGPL-3.0** | Signal Protocol (PQXDH etc.), **not** OMEMO 2 wire-compatible | Rejected |
-| libsignal-protocol-c | GPL-3.0, deprecated | Legacy OMEMO only | Rejected |
-| libomemo-c | **GPL-3.0** | OMEMO 2 + legacy | Rejected for licence (OK only if the owner accepts GPL for the app) |
-| vodozemac (Matrix) | Apache-2.0 | Olm/Megolm, not OMEMO | Rejected: wrong protocol |
-| **Own `OMEMO` module** on CryptoKit + CommonCrypto + libsodium | ours | OMEMO 2 v0.9.x | **Chosen**; audited before production |
+| Option | Licence | What must be confirmed in S1 |
+|--------|---------|------------------------------|
+| **Martin-OMEMO** (Tigase) | AGPL-3.0 / commercial | Does it implement `urn:xmpp:omemo:2` (XEP-0384 v0.8+) or only legacy `eu.siacs.conversations.axolotl`? Which crypto backend? Licence terms |
+| libomemo-c | GPL-3.0 | Implements OMEMO 2 + legacy (C). Usable only if the GPL is acceptable for the app or a different licence can be obtained |
+| libsignal (Signal) | AGPL-3.0 | Signal Protocol variant (PQXDH); **not** OMEMO 2 wire-compatible → not a candidate as is |
+| vodozemac | Apache-2.0 | Olm/Megolm → not a candidate |
+| **Own XEP-0384 protocol/state layer** on established libraries | ours | Last resort. Primitives only from reviewed libraries (below); our code = bundle/device-list handling, X3DH + Double Ratchet *state machine* per spec, SCE envelope, session store |
 
-This is a *protocol implementation on top of reviewed primitives*, not custom cryptography. Reference
-and test oracle: `python-omemo` / `python-twomemo` (MIT, by the XEP-0384 author), run in CI from
-`/tools/omemo-oracle`.
+Primitive requirements (fixed by XEP-0384 v0.9.1, `urn:xmpp:omemo:2`):
+
+| Primitive | Required by OMEMO 2 for | Source library (if we implement the protocol layer) |
+|-----------|--------------------------|------------------------------------------------------|
+| X25519 | X3DH, ratchet DH | CryptoKit `Curve25519.KeyAgreement` |
+| Ed25519 | identity key, SPK signature, label signature | CryptoKit `Curve25519.Signing` |
+| Ed25519 → X25519 conversion | DH with the identity key | libsodium `crypto_sign_ed25519_pk_to_curve25519` / `…_sk_to_curve25519` |
+| HKDF-SHA-256, HMAC-SHA-256 | KDF chains, payload/message keys | CryptoKit |
+| **AES-256-CBC** + HMAC-SHA-256 (truncated to 16 bytes) | message and payload encryption — **not AES-GCM** (per spec) | CommonCrypto `CCCrypt` |
+| Protobuf | OMEMO wire messages | swift-protobuf |
+
+AES-256-GCM is used for **attachments** (D8), not inside OMEMO 2.
+
+Interoperability oracles (independent implementations) for S1:
+
+- `python-omemo` + `python-twomemo` (MIT, by the XEP-0384 author) + `slixmpp`: scriptable in CI.
+- A second independent OMEMO 2 client where practical (e.g. one based on QXmpp/libomemo-c). Its OMEMO 2
+  support must be verified before relying on it.
 
 ### 3.3 Accepted dependencies (minimal set)
 
 | Package | Licence | Why | Alternative |
 |---------|---------|-----|-------------|
 | **GRDB.swift** | MIT | SQLite with FTS5, migrations, `ValueObservation`, `DatabasePool` (WAL, multi-process safe) | SwiftData: no FTS, weak migration control, cross-process concerns. Core Data: no FTS5, heavier, harder to test migrations |
-| **swift-sodium** (libsodium) | ISC | Ed25519 → X25519 public-key conversion (`crypto_sign_ed25519_pk_to_curve25519`), not available in CryptoKit | Hand-written field arithmetic: rejected (custom crypto) |
-| **swift-protobuf** (Apple) | Apache-2.0 | OMEMO 2 messages are protobuf (`OMEMOMessage`, `OMEMOAuthenticatedMessage`, `OMEMOKeyExchange`) | Hand-rolled protobuf encoding: small but risky for a security parser |
+| swift-sodium (libsodium) — *only if we implement the OMEMO protocol layer* | ISC | Ed25519 → X25519 conversion, not available in CryptoKit | Hand-written field arithmetic: forbidden (custom crypto) |
+| swift-protobuf (Apple) — *only if we implement the OMEMO protocol layer* | Apache-2.0 | OMEMO 2 messages are protobuf (`OMEMOMessage`, `OMEMOAuthenticatedMessage`, `OMEMOKeyExchange`) | Hand-rolled protobuf encoding: small but risky for a security parser |
 | **XcodeGen** (build tool only, not shipped) | MIT | Generate `.xcodeproj` from `project.yml` | Committed `.xcodeproj` (merge conflicts), Tuist (heavier) |
 
 Not used: analytics/ads/crash SDKs that see content, UI component frameworks, Firebase. A crash

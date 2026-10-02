@@ -49,9 +49,9 @@ flowchart TB
   subgraph Impl["Implementation modules"]
     Messaging["Messaging (ChatService impl, Outbox, SendQueue)"]
     Sync["SyncEngine (MAM catch-up, live ingest, dedup)"]
-    OMEMO["OMEMO (EncryptionService impl)"]
-    XT["XMPPTransport (MessagingTransport impl)"]
-    XC["XMPPCore (stream, SASL, SM, XML)"]
+    OMEMO["OMEMO (EncryptionService adapter, implementation decided by S1)"]
+    XT["XMPPTransport (MessagingTransport adapter over the chosen library)"]
+    XC["XMPP library (decided by spike S1)"]
     Att["Attachments (encrypt, upload, download, thumbnails)"]
     Push["Push (APNs token, gateway registration)"]
     Auth["Authentication"]
@@ -86,8 +86,10 @@ Dependency rules (enforced by SwiftPM target dependencies):
 | UI | Domain | anything XMPP, OMEMO, GRDB |
 | Domain | Foundation only | everything else |
 | Messaging, SyncEngine | Domain, Persistence | concrete XMPP or OMEMO types (they use protocols only) |
-| XMPPTransport | XMPPCore, Domain (transport protocol + value types) | UI, Persistence, OMEMO |
-| XMPPCore | Network.framework, libxml2 | everything app-specific |
+| XMPPTransport | the chosen XMPP library, Domain (transport protocol + value types) | UI, Persistence, OMEMO |
+
+The XMPP library and the OMEMO implementation are **open decisions (D3/D4)**, decided by spike S1.
+Only the adapter modules `XMPPTransport` and `OMEMO` may import them.
 | OMEMO | Security, Domain (`EncryptionService`), a crypto-store protocol | UI, XMPP types |
 | Persistence | Domain, GRDB | XMPP, OMEMO internals |
 
@@ -175,11 +177,11 @@ sequenceDiagram
   Packages/MessengerKit/         local SwiftPM package
     Package.swift
     Sources/
-      Domain/  Persistence/  XMPPCore/  XMPPTransport/  OMEMO/  SyncEngine/
+      Domain/  Persistence/  XMPPTransport/  OMEMO/  SyncEngine/
       Messaging/  Attachments/  Push/  Authentication/  Security/  Networking/
       DesignSystem/  UI/
     Tests/
-      DomainTests/  PersistenceTests/ (incl. migrations)  XMPPCoreTests/
+      DomainTests/  PersistenceTests/ (incl. migrations)  XMPPTransportTests/
       OMEMOTests/ (vectors, interop)  SyncEngineTests/  MessagingTests/  AttachmentsTests/
   IntegrationTests/              runs against a staging/dev ejabberd
 /server
@@ -197,6 +199,7 @@ sequenceDiagram
 /scripts
   admin.sh                       create/disable/delete/reset/list accounts (wraps ejabberdctl)
   backup.sh  restore.sh
+/spikes                          S1–S4 spike code (throwaway; results go to docs/spikes/)
 /tools/omemo-oracle              python-omemo/twomemo harness for OMEMO interop tests (CI)
 ```
 

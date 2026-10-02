@@ -60,7 +60,9 @@ traffic analysis by the server operator, metadata hiding from the server.
 ## 5. OMEMO key and device model
 
 Target: **XEP-0384 OMEMO Encryption v0.9.x, namespace `urn:xmpp:omemo:2`** (latest revision
-0.9.1, 2026-04-06). Legacy `eu.siacs.conversations.axolotl` is **not** implemented.
+0.9.1, 2026-04-06). Status of the XEP: **Experimental**, so the wire format may still change. We pin the
+version we implement and track spec revisions. Legacy `eu.siacs.conversations.axolotl` is not a target.
+Which implementation is used (library or our own protocol layer) is decided by spike S1.
 
 ### 5.1 Per-device key material
 
@@ -128,15 +130,40 @@ stale   → device with no traffic for 90 days: shown as "inactive"; not removed
 - Removing a member: future messages are no longer encrypted to their devices. Past messages remain
   readable by them (inherent).
 
-### 5.6 Verification requirements for our own implementation
+### 5.6 Future: secure history transfer (not in MVP)
 
-1. Unit tests per primitive composition (X3DH, KDF chains, Double Ratchet steps, skipped
-   keys, payload encryption) against the vectors and behaviour of `python-twomemo` (reference
-   implementation by the XEP-0384 author).
-2. Interop test in CI: Swift test target ↔ Python oracle exchange 1:1 and group messages,
-   out-of-order delivery, lost messages, session rebuild.
-3. Fuzzing of the protobuf/XML parsers.
-4. **Independent external audit before the Unlisted production release** (Phase 12 exit criterion).
+MVP behaviour: a new device sees history from the moment it became an OMEMO recipient. This is an
+MVP behaviour, **not** an architectural limit. The design keeps these properties so that a later
+transfer such as *old iPhone → QR / confirmation → encrypted transfer → new iPhone* fits without redesign:
+
+- Messages are stored **decrypted** locally, keyed by application IDs (`message.id`, `originId`,
+  `stanzaId`). They never depend on ratchet state after ingest. History can therefore be exported
+  without the OMEMO session state.
+- `message.source` records where a row came from (`live`, `carbon`, `mam`, `transfer`). Imported rows
+  pass through the same dedup pipeline (§3.2 in 03) as any other source.
+- Attachment rows hold their own key (wrapped by the local state key), so media references can be transferred
+  together with the messages.
+- The transfer is device-to-device and end-to-end encrypted. Expected shape: a session authenticated by QR code or a security
+  code between two own, trusted devices, a fresh ephemeral X25519 key agreement, and an AES-GCM stream
+  of a versioned export format. The server sees only ciphertext if it relays the data. OMEMO identity keys are
+  **not** transferred: the new device keeps its own identity.
+- `EncryptionService` and `PersistenceService` stay separate, so an exporter/importer can be added as a
+  new service without touching the ratchet code.
+
+### 5.7 Verification requirements (any OMEMO implementation we ship)
+
+Spike S1 decides which implementation is used (see [07 §3.2](07-ios-dependencies.md#32-omemo-2--open-decided-by-spike-s1)).
+Whatever is chosen must pass:
+
+1. Interop tests against at least one independent OMEMO 2 implementation (`python-twomemo` as a
+   scriptable oracle in CI; a second independent client where practical): initial session, multi-device,
+   pre-key consumption, session rebuild, device removal, device-list changes, reconnect, group messages,
+   out-of-order and lost messages.
+2. If we implement the protocol/state layer ourselves: per-step unit tests (X3DH, KDF chains,
+   Double Ratchet steps, skipped keys, payload encryption) and fuzzing of protobuf/XML parsers.
+   Cryptographic primitives always come from established libraries.
+3. **Independent external security review before the production release.** It is mandatory and gates
+   production. It does not block the skeleton or the spikes.
 
 ## 6. Attachment encryption (summary; details in 03 §4)
 

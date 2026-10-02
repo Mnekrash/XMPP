@@ -1,6 +1,6 @@
 # Private Messenger — Architecture Documentation
 
-Status: **DRAFT FOR APPROVAL** (Task 1 of the project brief). No application code exists yet.
+Status: **APPROVED WITH CHANGES** (owner review 2026-10-02, see below). D3/D4 remain open until spike S1.
 Date: 2026-10-02.
 
 This folder holds the architecture for a private iPhone messenger. It uses XMPP as an
@@ -35,8 +35,8 @@ Each decision states the chosen approach, the main alternative, and why. The lin
 |----|----------|--------|------------------|------------|
 | D1 | XMPP server | **ejabberd 26.x** | Prosody 13.x | Native PostgreSQL schema; built-in `mod_push` + `mod_push_keepalive`; MUC/Sub for offline group delivery; full admin command set (`ban_account`, `srg_*`, `set_vcard`) for a CLI without custom code |
 | D2 | Server DB | **PostgreSQL 17** | SQLite / Mnesia | Production-grade, backups, supported by ejabberd SQL backend |
-| D3 | iOS XMPP layer | **Own minimal Swift client (`XMPPCore`)** on Network.framework + libxml2 push parser | Martin (Tigase) | Martin is **AGPL-3.0** and its OMEMO module is legacy OMEMO; XMPPFramework is Obj-C and has little active maintenance. One server and one client means the protocol surface is small and fully under our control |
-| D4 | OMEMO | **Own OMEMO 2 (`urn:xmpp:omemo:2`, XEP-0384 v0.9.x)** on CryptoKit + CommonCrypto + libsodium | libomemo-c (GPL-3.0) | Licence compatibility with App Store distribution. Uses only reviewed primitives; tested against `python-omemo`/`twomemo` as a reference oracle; **external audit is mandatory before production** |
+| D3 | iOS XMPP transport | **OPEN — decided after spike S1.** Preferred: an existing library behind `MessagingTransport` (Martin is the primary candidate) | Own minimal transport | Avoid writing an XMPP stack from scratch unless a spike proves it necessary. Martin is AGPL-3.0 **or** commercially licensed by Tigase; the licence terms must be obtained, not assumed |
+| D4 | OMEMO 2 | **OPEN — decided after spike S1.** Candidates: Martin-OMEMO (if it supports OMEMO 2 and the licence fits), another existing implementation, or our own **protocol/state layer only** on established crypto libraries | Own crypto primitives (forbidden) | Never implement primitives ourselves. If we implement anything, it is the XEP-0384 state machine on top of reviewed libraries |
 | D5 | Local DB | **SQLite via GRDB** + FTS5 | SwiftData / Core Data | FTS5 search, explicit tested migrations, keyset pagination, safe multi-process access (Notification Service Extension) |
 | D6 | Push gateway | **Own small Go service**, XEP-0114 component → APNs | Conversations' `p2` (Java) | Privacy control over the payload (encrypted sender), minimal surface, replaceable |
 | D7 | Groups | **MUC (XEP-0045)**, members-only + non-anonymous, plus **ejabberd MUC/Sub** for offline delivery | MIX (XEP-0369) | MIX is not production-ready in servers or clients; plain MUC loses offline push |
@@ -47,23 +47,34 @@ Each decision states the chosen approach, the main alternative, and why. The lin
 | D12 | Admin | **`scripts/admin.sh`** wrapping `ejabberdctl` over SSH | Web admin panel | No admin API exposed to the Internet; enough for the MVP |
 | D13 | Reverse proxy / TLS | **Caddy** (ACME) in front of HTTP services; ejabberd terminates XMPP TLS itself using Caddy's certs | nginx + certbot | One ACME client, automatic renewal, simple config |
 
-## Decisions that need the owner's explicit approval
+## Owner review — 2026-10-02
 
-1. **D3/D4 — writing our own XMPP client layer and OMEMO 2 implementation.** This is the biggest
-   cost and risk item. The only shortcut (Martin + MartinOMEMO) would require
-   releasing the entire app under AGPL-3.0 (or buying a commercial licence from Tigase) and
-   would give legacy OMEMO instead of OMEMO 2. Please confirm: own implementation, or contact Tigase
-   for a commercial licence.
-2. **External cryptographic audit** of the OMEMO module before the production (Unlisted) release.
-3. **No interoperability with third-party XMPP clients** is a goal. The service is closed. Third-party
-   OMEMO 2 clients may work, but are not supported.
-4. **History on a new device starts when that device is added.** This is an inherent OMEMO
-   property: old messages were never encrypted for the new device. A future encrypted-backup or
-   device-to-device history transfer can address it.
-5. **Push notification text** = "New message from <Name>". The name is resolved on the device. APNs
-   and Apple never see plaintext or the sender's name. See [04-push.md](04-push.md).
-6. **Jurisdiction / legal.** Operating an end-to-end encrypted messenger has regulatory implications
-   in some countries (e.g. obligations for messaging service operators, export-control
-   classification of encryption for App Store submission). This must be checked for the
-   countries where the operator and the users are located. It is outside the scope of this
-   document.
+Approved: D1, D2, D5, D6, D8, D9, D10 (UIKit only for the message timeline), D11, D12, D13.
+Changed or added by the owner:
+
+1. **D3/D4 are not approved.** The library architecture is fixed only after spike S1, which compares
+   Martin (transport), Martin-OMEMO (licence + OMEMO version + limitations), a custom transport, and a custom
+   OMEMO 2 protocol layer. Preference order: existing transport library → existing OMEMO implementation →
+   our own XEP-0384 protocol/state layer on established primitives. Crypto primitives are never ours.
+2. **OMEMO 2 interoperability is a blocking spike (S1)** before full implementation. See
+   [08-phases-and-risks.md §3](08-phases-and-risks.md#3-mandatory-technical-spikes).
+3. **Notification previews**: encrypted push envelope → `UNNotificationServiceExtension` → local
+   decryption → sender (and, where possible, preview). The fallback is always a generic "New message". The app must not depend
+   on the NSE succeeding. See [04-push.md](04-push.md).
+4. **Attachments**: no plaintext thumbnail, filename, preview or original file outside the encrypted envelope,
+   unless it is explicitly classified as non-sensitive metadata ([03 §4.1](03-messaging-and-sync.md#41-metadata-classification)).
+5. **Fourth mandatory spike (S4): MAM + Stream Management + reconnect + deduplication.**
+6. **New-device history**: the MVP behaviour is "history from the moment the device became an OMEMO recipient".
+   This is **not** an architectural limit. The design keeps room for a future secure device-to-device
+   history/key transfer ([02 §5.6](02-security-model.md#56-future-secure-history-transfer-not-in-mvp)).
+7. **Third-party client compatibility is not a requirement, but standards compliance is** (where
+   practical): it gives testability and avoids proprietary protocol behaviour.
+8. **An external security review is mandatory before the production release.** It does not block Task 2.
+
+Next milestone after the skeleton (Task 2): the four spikes S1–S4. Each spike report is recorded in `docs/spikes/`
+as PASS / FAIL / PARTIAL with observed behaviour and unresolved limitations.
+
+Still open for the owner:
+
+- Licence terms from Tigase for Martin / Martin-OMEMO (needed as input to S1).
+- Jurisdiction / legal review of operating an E2EE messenger (outside engineering scope).

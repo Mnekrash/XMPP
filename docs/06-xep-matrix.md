@@ -50,6 +50,10 @@ Server/Client columns show where the work lives (✔ = implementation needed or 
 | XEP-0166/0167 | Jingle (calls) | Fut | — | — | — | Calls are explicitly out of the MVP |
 | XEP-0045 public rooms, XEP-0433 search | — | ✗ | — | disabled | — | No public discovery by product rule |
 
+Compatibility policy: compatibility with third-party XMPP clients is **not** a product requirement. Standards compliance
+**is** required where practical: it gives testability against independent implementations and avoids proprietary
+protocol behaviour. Deviations (e.g. ejabberd MUC/Sub) are listed explicitly and isolated behind domain services.
+
 Explicitly **not** used: legacy OMEMO (`eu.siacs.conversations.axolotl`), XEP-0454 (`aesgcm://` URL
 media sharing), in-band registration (XEP-0077), server-to-server federation.
 
