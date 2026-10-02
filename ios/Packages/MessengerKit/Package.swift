@@ -52,7 +52,6 @@ let package = Package(
         .testTarget(name: "DomainTests", dependencies: ["Domain"]),
         .testTarget(name: "NetworkingTests", dependencies: ["Networking"]),
         .testTarget(name: "AuthenticationTests", dependencies: ["Authentication", "AppSecurity"]),
-        .testTarget(name: "AppSecurityTests", dependencies: ["AppSecurity"]),
         .testTarget(name: "IntegrationTests", dependencies: ["Authentication", "AppSecurity", "XMPPTransport", "Networking", "Domain"]),
         .testTarget(
             name: "XMPPTransportTests",

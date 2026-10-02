@@ -71,9 +71,10 @@ public final class AccountConnection: @unchecked Sendable {
         c.connectionConfiguration.userJid = BareJID(localPart: username, domain: config.xmppDomain)
         c.connectionConfiguration.resource = resource
         c.connectionConfiguration.credentials = .password(password: password, authenticationName: nil, cache: nil)
-        var options = SocketConnectorNetwork.Options()
-        options.connectionDetails = .init(proto: .XMPPS, host: config.xmppHost, port: Int(config.xmppPort))
-        options.connectionTimeout = 15
+        // System TLS via Martin's CFStream connector; see FixedEndpointResolver.swift for why not SocketConnectorNetwork.
+        var options = SocketConnector.Options()
+        options.dnsResolver = FixedEndpointResolver(host: config.xmppHost, port: Int(config.xmppPort))
+        options.conntectionTimeout = 15
         c.connectionConfiguration.connectorOptions = options
         _ = c.modulesManager.register(StreamFeaturesModule())
         _ = c.modulesManager.register(SaslModule())

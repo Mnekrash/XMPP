@@ -68,6 +68,7 @@ targets:
         NSMicrophoneUsageDescription: "Микрофон нужен для записи голосовых сообщений."
         NSCameraUsageDescription: "Камера нужна, чтобы снимать и отправлять фото и видео."
         NSPhotoLibraryAddUsageDescription: "Сохранённые вами фото добавляются в медиатеку."
+        NSLocalNetworkUsageDescription: "Нужно только для подключения к тестовому серверу в локальной сети."
         ITSAppUsesNonExemptEncryption: false   # development builds only; set after the export-compliance review
         # Server configuration (values come from Config/*.xcconfig; never hardcoded in Swift)
         MessengerXMPPDomain: $(XMPP_DOMAIN)
@@ -100,6 +101,19 @@ targets:
           NSExtensionPointIdentifier: com.apple.usernotifications.service
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).NotificationService
 
+  MessengerTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [AppTests]
+    dependencies:
+      - target: Messenger
+      - package: MessengerKit
+        products: [AppSecurity]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID).tests
+        GENERATE_INFOPLIST_FILE: YES
+
 schemes:
   Messenger:
     build:
@@ -107,5 +121,8 @@ schemes:
         Messenger: all
     run:
       config: Development
+    test:
+      config: Development
+      targets: [MessengerTests]
     archive:
       config: Production

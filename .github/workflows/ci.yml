@@ -61,7 +61,7 @@ jobs:
           UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for r,l in sorted(d.items(), reverse=True) if 'iOS' in r for x in l if x['name'].startswith('iPhone')))")
           echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
           xcrun simctl list devices | grep "$UDID"
-      - name: MessengerKit unit tests on the iOS simulator (Domain, Networking, Authentication, Keychain, transport)
+      - name: MessengerKit unit tests on the iOS simulator (Domain, Networking, Authentication, transport)
         working-directory: ios/Packages/MessengerKit
         run: |
           xcodebuild test -scheme MessengerKit-Package -destination "id=$SIM_UDID" -skipPackagePluginValidation \
@@ -69,10 +69,12 @@ jobs:
           test "${PIPESTATUS[0]}" -eq 0
       - name: Generate Xcode project
         run: cd ios && xcodegen generate
-      - name: Build app + Notification Service Extension (simulator, unsigned)
+      - name: Build app + Notification Service Extension and run the app-hosted Keychain tests (simulator, ad-hoc signed)
         run: |
-          xcodebuild -project ios/Messenger.xcodeproj -scheme Messenger -configuration Development \
-            -destination "id=$SIM_UDID" CODE_SIGNING_ALLOWED=NO build | tail -20
+          # The Keychain needs a signed host app; ad-hoc signing ("-") needs no team on the simulator.
+          xcodebuild test -project ios/Messenger.xcodeproj -scheme Messenger -configuration Development \
+            -destination "id=$SIM_UDID" CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= \
+            | tee "$RUNNER_TEMP/app.log" | grep -E "✔|✘|passed|failed|error:" | tail -40
           test "${PIPESTATUS[0]}" -eq 0
           APP=$(find ~/Library/Developer/Xcode/DerivedData -path "*Development-iphonesimulator/Messenger Dev.app" -maxdepth 6 | head -1)
           test -d "$APP/PlugIns/NotificationService.appex" && echo "NSE embedded: $APP/PlugIns/NotificationService.appex"

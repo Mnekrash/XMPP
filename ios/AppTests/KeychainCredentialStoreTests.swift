@@ -3,7 +3,8 @@ import AppSecurity
 import Foundation
 import Testing
 
-/// Runs on the iOS simulator in CI (real Keychain behaviour).
+/// Runs inside the app on the iOS simulator (the Keychain needs a signed host app; a bare package test bundle
+/// gets errSecMissingEntitlement -34018).
 struct KeychainCredentialStoreTests {
     @Test func saveLoadReplaceDelete() throws {
         let store = KeychainCredentialStore(service: "tests.\(UUID().uuidString)")
