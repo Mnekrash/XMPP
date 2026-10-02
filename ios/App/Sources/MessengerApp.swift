@@ -20,13 +20,22 @@ struct MessengerApp: App {
         let auth = XMPPAuthService(connection: connection,
                                    credentials: KeychainCredentialStore(service: bundleID + ".credentials"),
                                    appVersion: Self.version)
+        #if DEMO_MODE
+        // DemoMode (Development only): "demo"/"demo" opens sample chats without any server access.
+        model = AppModel(auth: DemoModeAuthService(inner: auth), diagnostics: auth)
+        #else
         model = AppModel(auth: auth, diagnostics: auth)
+        #endif
     }
 
     var body: some Scene {
         WindowGroup {
             if let model {
+                #if DEMO_MODE
+                DemoModeRoot(model: model)
+                #else
                 RootView(model: model)
+                #endif
             } else {
                 ContentUnavailableView(
                     "Не удалось запустить",

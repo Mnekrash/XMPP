@@ -80,6 +80,20 @@ jobs:
           APP="$RUNNER_TEMP/dd/Build/Products/Development-iphonesimulator/Messenger.app"   # PRODUCT_NAME = target name; "Messenger Dev" is only the display name
           ls "$APP/PlugIns"
           test -d "$APP/PlugIns/NotificationService.appex" && echo "NSE embedded: $APP/PlugIns/NotificationService.appex"
+          # Control for the Production check below: the Development app must contain DemoMode
+          # (type names and the demo-only literal "theatermasks.fill"; debug code lives in Messenger.debug.dylib).
+          grep -r -a -q "DemoMode" "$APP" && grep -r -a -q "theatermasks.fill" "$APP" && echo "DemoMode present in Development (expected)"
+      - name: Production build for a physical iPhone contains no DemoMode code
+        run: |
+          xcodebuild -project ios/Messenger.xcodeproj -scheme Messenger -configuration Production \
+            -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/dd-prod" CODE_SIGNING_ALLOWED=NO build | tail -5
+          test "${PIPESTATUS[0]}" -eq 0
+          PROD_APP="$RUNNER_TEMP/dd-prod/Build/Products/Production-iphoneos/Messenger.app"
+          test -f "$PROD_APP/Messenger"
+          if grep -r -a -i -l -e "demomode" -e "DEMO_MODE" -e "theatermasks.fill" "$PROD_APP"; then
+            echo "::error::DemoMode found in the Production app"; exit 1
+          fi
+          echo "Production app: no DemoMode code, symbols or strings"
       - name: Build app for a physical iPhone (generic device, unsigned)
         run: |
           xcodebuild -project ios/Messenger.xcodeproj -scheme Messenger -configuration Development \

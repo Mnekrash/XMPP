@@ -41,6 +41,7 @@ targets:
     sources:
       - App/Sources
       - App/Resources
+      - App/DemoMode          # DemoMode: compiled only in Development (see settings.configs)
     dependencies:
       - package: MessengerKit
         products: [Domain, Networking, AppSecurity, XMPPTransport, Authentication, UI]
@@ -51,6 +52,15 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID)
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+      configs:
+        # DemoMode (login demo/demo, sample chats, no server) exists only in Development builds.
+        # Staging/Production do not compile any DemoMode*.swift file; CI checks the Production binary.
+        Development:
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) DEMO_MODE"
+        Staging:
+          EXCLUDED_SOURCE_FILE_NAMES: "DemoMode*.swift"
+        Production:
+          EXCLUDED_SOURCE_FILE_NAMES: "DemoMode*.swift"
     info:
       path: App/Info.plist
       properties:
