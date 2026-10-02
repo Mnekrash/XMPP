@@ -67,7 +67,15 @@ services:
   push-gateway:
     build: ../push
     restart: unless-stopped
-    depends_on: [ejabberd]
+    # Two instances: ejabberd load-balances the component; a single instance restarting makes ejabberd
+    # disable push for users in background (spike S2 finding p04). Rolling restarts keep one connected.
+    deploy:
+      replicas: 2
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ejabberd:
+        condition: service_started
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-development}
       XMPP_DOMAIN: ${XMPP_DOMAIN}
@@ -75,6 +83,15 @@ services:
       COMPONENT_ADDR: ejabberd:5347
       COMPONENT_SECRET: ${PUSH_COMPONENT_SECRET:?set in .env}
       HTTP_ADDR: ":8080"
+      DATABASE_URL: postgres://${PUSH_DB_USER}:${PUSH_DB_PASSWORD}@postgres:5432/${PUSH_DB_NAME}?sslmode=disable
+      APNS_KEY_FILE: ${APNS_KEY_FILE:-}
+      APNS_KEY_ID: ${APNS_KEY_ID:-}
+      APNS_TEAM_ID: ${APNS_TEAM_ID:-}
+      APNS_TOPIC: ${APNS_TOPIC:-}
+      APNS_SANDBOX_URL: ${APNS_SANDBOX_URL:-}
+      APNS_CA_FILE: ${APNS_CA_FILE:-}
+    volumes:
+      - ${APNS_SECRETS_DIR:-./no-secrets}:/run/apns:ro
     networks: [internal]
 
   # One-shot tool, run by scripts/sync-certs.sh (not started by "up").

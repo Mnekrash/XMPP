@@ -120,7 +120,8 @@ Documented compromise: our own server and gateway see who messaged whom and when
 |-------|--------|
 | First launch after login | request notification permission (after the first chat screen, not at login); register |
 | `didRegisterForRemoteNotificationsWithDeviceToken` | compare with the stored token hash; if changed → re-register with the gateway, re-`enable` on the server |
-| Every app start | re-`enable` (idempotent; heals server-side state loss) |
+| Every new session **and every resume** | re-`enable` (idempotent). Required: ejabberd disables push after a failed publish, e.g. during a gateway outage (S2 p04) |
+| Token change | register the new token → `disable` the old node → `enable` the new node → `unregister` the old one. ejabberd keeps **one push node per session** (S2 p06) |
 | APNs 410 Unregistered / 400 BadDeviceToken | gateway deletes the registration and returns an error to ejabberd, so `mod_push` disables that node |
 | Logout | `disable` on the server, `unregister` on the gateway, delete deviceKey from the Keychain |
 | Account disabled/deleted (admin) | `admin.sh` also purges the account's gateway registrations |
@@ -134,6 +135,9 @@ Documented compromise: our own server and gateway see who messaged whom and when
     `com.apple.developer.usernotifications.filtering` entitlement.
 
 ## 6. Failure handling and observability
+
+- The gateway runs **two instances** (ejabberd load-balances an external component). With a single instance, a
+  restart makes ejabberd disable push for every user in background (S2 p04/p10).
 
 - Gateway logs: registration count, APNs status codes per minute, 410 cleanups, latency. **No** JIDs
   in info-level logs (hashed), never payloads.

@@ -1,0 +1,70 @@
+# S2 device spike (NOT the product app). Generate: cd spikes/s2-push/ios && xcodegen generate
+# Set DEVELOPMENT_TEAM and SPIKE_BUNDLE_ID in Local.xcconfig (git-ignored). Uses Martin 3.2.4 (AGPL-3.0):
+# internal test builds only, never distributed.
+name: PushSpike
+options:
+  deploymentTarget:
+    iOS: "18.0"
+configFiles:
+  Debug: Spike.xcconfig
+  Release: Spike.xcconfig
+settings:
+  base:
+    SWIFT_VERSION: "5.0"          # Martin is Swift 5 mode; spike code is kept Swift-6-clean where practical
+    TARGETED_DEVICE_FAMILY: "1"
+packages:
+  Martin:
+    url: https://github.com/tigase/Martin.git
+    exactVersion: 3.2.4
+  NotificationEnvelope:
+    path: ../NotificationEnvelope
+targets:
+  PushSpike:
+    type: application
+    platform: iOS
+    sources: [App, Shared]
+    dependencies:
+      - package: Martin
+      - package: NotificationEnvelope
+      - target: PushSpikeNSE
+        embed: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(SPIKE_BUNDLE_ID)
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: PushSpike
+        UILaunchScreen: {}
+        UIBackgroundModes: [remote-notification]
+        SpikeAppGroup: $(SPIKE_APP_GROUP)
+        SpikeKeychainGroup: $(AppIdentifierPrefix)$(SPIKE_KEYCHAIN_GROUP)
+    entitlements:
+      path: App/PushSpike.entitlements
+      properties:
+        aps-environment: development
+        com.apple.security.application-groups: [$(SPIKE_APP_GROUP)]
+        keychain-access-groups: [$(AppIdentifierPrefix)$(SPIKE_KEYCHAIN_GROUP)]
+  PushSpikeNSE:
+    type: app-extension
+    platform: iOS
+    sources: [NSE, Shared]
+    dependencies:
+      - package: NotificationEnvelope
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(SPIKE_BUNDLE_ID).nse
+    info:
+      path: NSE/Info.plist
+      properties:
+        CFBundleDisplayName: PushSpikeNSE
+        SpikeAppGroup: $(SPIKE_APP_GROUP)
+        SpikeKeychainGroup: $(AppIdentifierPrefix)$(SPIKE_KEYCHAIN_GROUP)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.usernotifications.service
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).NotificationService
+    entitlements:
+      path: NSE/PushSpikeNSE.entitlements
+      properties:
+        com.apple.security.application-groups: [$(SPIKE_APP_GROUP)]
+        keychain-access-groups: [$(AppIdentifierPrefix)$(SPIKE_KEYCHAIN_GROUP)]

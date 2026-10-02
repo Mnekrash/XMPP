@@ -18,7 +18,8 @@ TEAM_GROUP="team"
 die() { echo "error: $*" >&2; exit 1; }
 
 [[ -f "$ENV_FILE" ]] || die "missing $ENV_FILE"
-DOMAIN="$(grep -E '^XMPP_DOMAIN=' "$ENV_FILE" | tail -n 1 | cut -d= -f2- | sed 's/[[:space:]]*#.*$//; s/[[:space:]]*$//')"
+env_value() { grep -E "^$1=" "$ENV_FILE" | tail -n 1 | cut -d= -f2- | sed 's/[[:space:]]*#.*$//; s/[[:space:]]*$//'; }
+DOMAIN="$(env_value XMPP_DOMAIN)"
 [[ -n "$DOMAIN" ]] || die "XMPP_DOMAIN is not set in $ENV_FILE"
 
 ctl() {
@@ -36,8 +37,13 @@ new_password() {
 }
 
 push_cleanup() {
-  # SKELETON: the push gateway does not store registrations yet (see docs/04-push.md).
-  echo "note: push registration cleanup is not implemented yet (push gateway skeleton)" >&2
+  # Remove the account's APNs registrations from the push gateway database (the JID is a psql variable, not SQL text).
+  local account="$1@$DOMAIN" deleted
+  deleted="$(echo "DELETE FROM registration WHERE account_jid = :'jid';" | \
+    docker compose -f "$ROOT/deploy/docker-compose.yml" --env-file "$ENV_FILE" exec -T postgres \
+      psql -U "$(env_value PUSH_DB_USER)" -d "$(env_value PUSH_DB_NAME)" -v ON_ERROR_STOP=1 -v jid="$account" -tA 2>&1)" \
+    || { echo "warning: push registration cleanup failed: $deleted" >&2; return 0; }
+  echo "Push registrations removed: ${deleted#DELETE }"
 }
 
 cmd="${1:-}"; shift || true
@@ -65,7 +71,7 @@ case "$cmd" in
     [[ $# -eq 2 ]] || die "usage: disable <username> \"<reason>\""
     valid_username "$1"
     ctl ban_account "$1" "$DOMAIN" "$2"
-    push_cleanup
+    push_cleanup "$1"
     echo "Disabled '$1': sessions closed, login blocked."
     ;;
   enable)
@@ -81,7 +87,7 @@ case "$cmd" in
     [[ "$answer" == "$1" ]] || die "not confirmed"
     ctl kick_user "$1" "$DOMAIN" >/dev/null || true
     ctl unregister "$1" "$DOMAIN"
-    push_cleanup
+    push_cleanup "$1"
     echo "Deleted '$1'."
     ;;
   reset-password)

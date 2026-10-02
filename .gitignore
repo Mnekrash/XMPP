@@ -38,3 +38,9 @@ __pycache__/
 spikes/**/.build/
 spikes/**/.swiftpm/
 spikes/**/.venv/
+spikes/s2-push/ios/*.xcodeproj
+spikes/s2-push/ios/Local.xcconfig
+spikes/s2-push/ios/App/Info.plist
+spikes/s2-push/ios/App/*.entitlements
+spikes/s2-push/ios/NSE/Info.plist
+spikes/s2-push/ios/NSE/*.entitlements

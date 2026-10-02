@@ -16,6 +16,11 @@ func TestFromEnvValid(t *testing.T) {
 		"COMPONENT_JID":    "push.chat.example.com",
 		"COMPONENT_ADDR":   "ejabberd:5347",
 		"COMPONENT_SECRET": "s3cret",
+		"DATABASE_URL":     "postgres://x",
+		"APNS_KEY_FILE":    "/k.p8",
+		"APNS_KEY_ID":      "K",
+		"APNS_TEAM_ID":     "T",
+		"APNS_TOPIC":       "com.example.app",
 	}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -30,9 +35,19 @@ func TestFromEnvReportsAllMissing(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	for _, want := range []string{"ENVIRONMENT", "XMPP_DOMAIN", "COMPONENT_JID", "COMPONENT_ADDR", "COMPONENT_SECRET"} {
+	for _, want := range []string{"ENVIRONMENT", "XMPP_DOMAIN", "COMPONENT_JID", "COMPONENT_ADDR", "COMPONENT_SECRET", "DATABASE_URL"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error %q does not mention %s", err, want)
 		}
+	}
+}
+
+func TestProductionRejectsOverridesAndMissingKey(t *testing.T) {
+	_, err := FromEnv(lookupFrom(map[string]string{
+		"ENVIRONMENT": "production", "XMPP_DOMAIN": "d", "COMPONENT_JID": "p.d", "COMPONENT_ADDR": "a:1",
+		"COMPONENT_SECRET": "s", "DATABASE_URL": "postgres://x", "APNS_SANDBOX_URL": "https://mock",
+	}))
+	if err == nil || !strings.Contains(err.Error(), "APNS_KEY_FILE") || !strings.Contains(err.Error(), "overrides") {
+		t.Fatalf("expected key + override errors, got %v", err)
 	}
 }

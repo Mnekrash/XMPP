@@ -1,0 +1,35 @@
+[
+ {
+  "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+  "e": "AYbqfqqayPN5d2ms85ZWQGH4W7zzEgvjkfBvnWreENUc7UuX87wjQ9mAYsznm6m0CiwGpci4dQMy7FvXNX9TRbhY5DpZitwyXko1q/FQZPrl8RYGT62GvoaZCj3eBb9GLtMOU8Gks6icUK2N1MmiQCxpynlUOA==",
+  "envelope": {
+   "v": 1,
+   "sender": "alice@chat.example.com/phone",
+   "conv": "alice@chat.example.com",
+   "count": 1
+  },
+  "thread": "237eef21de56344534db6cb80544a11f"
+ },
+ {
+  "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+  "e": "AeBWkR9ecyPZw4bHQj/VN1H735AGp98tzamXQQHtagdo1wAvUaIqt6zOdktMow8Zy3CTgmYcZm6k67K4R6ePUK8EFBYznaRM0Snq9h3kSmY+axJh/0j8+dNFpTNHsRZvqdf9pzgf2650WCxRsLsAnUY8+OdZ1XrbQuao86azw+I=",
+  "envelope": {
+   "v": 1,
+   "sender": "team@groups.chat.example.com/Bob",
+   "conv": "team@groups.chat.example.com",
+   "count": 3
+  },
+  "thread": "cfdfc77ec8871b65025ebcca540b2ede"
+ },
+ {
+  "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+  "e": "Ab73mVRZaX4bRN5quGsp6jiafbDR6EAepHDaM9ORcWa0OdU0YgR53JQ3ydt1vJ3fNUPNf2BQRy5x7AQgC4t5K+ZTLhqy4Aj7B1K6mtLuzZlbdmROP99jOq5D7CAdWhtWGZulNWztGGA1sMxHnXrHFk09flb3XHYZPBCVOA==",
+  "envelope": {
+   "v": 1,
+   "sender": "Ünïcødé@chat.example.com",
+   "conv": "Ünïcødé@chat.example.com",
+   "count": 1
+  },
+  "thread": "fb347ae73b6f4a36df3e004488b81fc7"
+ }
+]
